@@ -1,0 +1,78 @@
+[
+    {
+        "id": "assignment-1",
+        "title": "Dövme Tarihi Araştırma Notları",
+        "description": "Dövme tarihinin üç önemli dönemini seçin ve kısa karşılaştırmalı notlar hazırlayın.",
+        "dueDate": "2026-04-15T23:59:59Z",
+        "submissionDate": null,
+        "fileURL": null,
+        "status": "pending",
+        "feedback": null
+    },
+    {
+        "id": "assignment-2",
+        "title": "İğne ve Kartuş Karşılaştırma Çalışması",
+        "description": "Farklı iğne grupları ve cartridge sistemleri için kullanım senaryolarını tablo halinde çıkarın.",
+        "dueDate": "2026-04-10T23:59:59Z",
+        "submissionDate": "2026-04-08T10:00:00Z",
+        "fileURL": "https://example.com/uploads/needle-cartridge-study.jpg",
+        "status": "submitted",
+        "feedback": null
+    },
+    {
+        "id": "assignment-3",
+        "title": "Hijyen Protokolü ve Sterilizasyon Raporu",
+        "description": "Bir dövme stüdyosu için hijyen akışı, sterilizasyon mantığı ve çapraz bulaşma önleme planı hazırlayın.",
+        "dueDate": "2026-03-28T23:59:59Z",
+        "submissionDate": "2026-03-25T14:00:00Z",
+        "fileURL": "https://example.com/uploads/hygiene-protocol-report.pdf",
+        "status": "reviewed",
+        "feedback": {
+            "id": "feedback-1",
+            "assignmentId": "assignment-3",
+            "instructorId": "instructor-1",
+            "instructorName": "Eğitmen Elif Kaya",
+            "comment": "Sterilizasyon akışını çok net anlatmışsın. Tek kullanımlık sistemler ve bariyer mantığı bölümü özellikle güçlü.",
+            "rating": 9,
+            "date": "2026-03-30T14:30:00Z"
+        }
+    },
+    {
+        "id": "assignment-4",
+        "title": "Çizgi ve Dotwork Egzersiz Portfolyosu",
+        "description": "Çizgi, dotwork ve temel gölge tekniklerinden oluşan en az 10 sayfalık bir pratik portfolyosu hazırlayın.",
+        "dueDate": "2026-04-20T23:59:59Z",
+        "submissionDate": null,
+        "fileURL": null,
+        "status": "pending",
+        "feedback": null
+    },
+    {
+        "id": "assignment-5",
+        "title": "Yapay Deri Gölge-Dolgu Uygulaması",
+        "description": "Yapay deri üzerinde çizgi, gölge ve dolgu kombinasyonlu bir çalışma yapın ve süreci fotoğraflayın.",
+        "dueDate": "2026-04-12T23:59:59Z",
+        "submissionDate": "2026-04-05T16:30:00Z",
+        "fileURL": "https://example.com/uploads/fake-skin-shading-practice.jpg",
+        "status": "revisionRequested",
+        "feedback": {
+            "id": "feedback-2",
+            "assignmentId": "assignment-5",
+            "instructorId": "instructor-1",
+            "instructorName": "Eğitmen Elif Kaya",
+            "comment": "Çizgi yerleşimi iyi ancak gölge geçişlerinde yoğunluk dengesiz. Dolgu alanlarını daha kontrollü tekrar çalışıp yeniden gönder.",
+            "rating": 5,
+            "date": "2026-04-07T11:00:00Z"
+        }
+    },
+    {
+        "id": "assignment-6",
+        "title": "Portfolyo ve Sosyal Medya İçerik Planı",
+        "description": "Portfolyo sunum sırası, paylaşım dili ve sosyal medya içerik takvimi için kısa bir kariyer planı hazırlayın.",
+        "dueDate": "2026-04-26T23:59:59Z",
+        "submissionDate": null,
+        "fileURL": null,
+        "status": "pending",
+        "feedback": null
+    }
+]

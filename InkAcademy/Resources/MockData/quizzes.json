@@ -1,0 +1,80 @@
+[
+    {
+        "id": "quiz-1",
+        "lessonId": "lesson-1-2",
+        "passingScore": 2,
+        "questions": [
+            {
+                "id": "q-1-1",
+                "text": "Modern dövme kültürü hangi başlıkla en doğru tanımlanır?",
+                "options": ["Sadece geleneksel ritüel", "Sanat, disiplin ve profesyonel uygulama alanı", "Yalnızca moda akımı", "Sadece stüdyo dekorasyonu"],
+                "correctOptionIndex": 1
+            },
+            {
+                "id": "q-1-2",
+                "text": "Dövme sanatçısının profesyonel yaklaşımı içinde hangisi yer alır?",
+                "options": ["Sorumluluk almamak", "Hijyeni ikinci planda tutmak", "Disiplin ve öğrenme sürecine bağlı kalmak", "Sadece hızlı çalışmak"],
+                "correctOptionIndex": 2
+            },
+            {
+                "id": "q-1-3",
+                "text": "Dövme sanatı yalnızca teknik bir iş değildir, kültürel bir arka planı da vardır.",
+                "options": ["Doğru", "Yanlış"],
+                "correctOptionIndex": 0,
+                "type": "trueFalse"
+            }
+        ]
+    },
+    {
+        "id": "quiz-2",
+        "lessonId": "lesson-2-1",
+        "passingScore": 2,
+        "questions": [
+            {
+                "id": "q-2-1",
+                "text": "Cartridge sistemlerinin temel avantajı nedir?",
+                "options": ["Daha ağır olmaları", "Kolay ve kontrollü iğne değişimi sağlamaları", "Sadece renk doldurmada kullanılması", "Sterilizasyona gerek bırakmaması"],
+                "correctOptionIndex": 1
+            },
+            {
+                "id": "q-2-2",
+                "text": "Taper seçimi hangi unsuru etkiler?",
+                "options": ["İğnenin gövde rengi", "Mürekkep şişesi boyutu", "Çizgi ve deri temas karakteri", "Pedal kablosu uzunluğu"],
+                "correctOptionIndex": 2
+            },
+            {
+                "id": "q-2-3",
+                "text": "Bugpin iğneler daha hassas detay çalışmaları için tercih edilebilir.",
+                "options": ["Doğru", "Yanlış"],
+                "correctOptionIndex": 0,
+                "type": "trueFalse"
+            }
+        ]
+    },
+    {
+        "id": "quiz-3",
+        "lessonId": "lesson-4-2",
+        "passingScore": 2,
+        "questions": [
+            {
+                "id": "q-3-1",
+                "text": "Çapraz bulaşmayı önlemede en kritik yaklaşım hangisidir?",
+                "options": ["Aynı eldiveni uzun süre kullanmak", "Tek kullanımlık sistem ve bariyer düzeni", "Makineyi açık bırakmak", "Sadece masa temizliği yapmak"],
+                "correctOptionIndex": 1
+            },
+            {
+                "id": "q-3-2",
+                "text": "Sterilizasyon mantığı içinde hangi ekipman öne çıkar?",
+                "options": ["Otoklav", "Sprey şişesi", "Telefon kamerası", "Işık kolu"],
+                "correctOptionIndex": 0
+            },
+            {
+                "id": "q-3-3",
+                "text": "Tek kullanımlık malzemeler tekrar kullanılmamalıdır.",
+                "options": ["Doğru", "Yanlış"],
+                "correctOptionIndex": 0,
+                "type": "trueFalse"
+            }
+        ]
+    }
+]

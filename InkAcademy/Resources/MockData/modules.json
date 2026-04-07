@@ -1,0 +1,254 @@
+[
+    {
+        "id": "module-1",
+        "title": "Dövme Nedir",
+        "description": "Eğitim sistemini, dövme tarihini ve profesyonel sanatçı yaklaşımını tanıtan başlangıç modülü.",
+        "imageURL": null,
+        "isLocked": false,
+        "lessons": [
+            {
+                "id": "lesson-1-1",
+                "title": "Eğitime Giriş ve Altın Kurallar",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 780,
+                "order": 1,
+                "isCompleted": true,
+                "description": "İnkakademi eğitim sistemi, teori-pratik-stüdyo yapısı, altın kurallar ve QR destekli öğrenme düzeni."
+            },
+            {
+                "id": "lesson-1-2",
+                "title": "Dövme Tarihi ve Modern Kültür",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 840,
+                "order": 2,
+                "isCompleted": true,
+                "description": "Dövmenin tanımı, yakın dönem tarihi, modern dövme kültürü ve sanatçının profesyonel yaklaşımı."
+            },
+            {
+                "id": "lesson-1-3",
+                "title": "Öğrenme Süreci ve Sanatçı Disiplini",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 900,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Öğrenme süreci, disiplin, dövmenin sanat ve meslek olarak gelişimi, usta-çırak eğitimi ve profesyonel yol haritası."
+            }
+        ]
+    },
+    {
+        "id": "module-2",
+        "title": "Dövme Malzemeleri",
+        "description": "İğnelerden makinelere, boyalardan sarf malzemelerine kadar temel ekipman bilgisini kapsar.",
+        "imageURL": null,
+        "isLocked": false,
+        "lessons": [
+            {
+                "id": "lesson-2-1",
+                "title": "İğneler, Kartuş ve Taper Sistemleri",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 960,
+                "order": 1,
+                "isCompleted": false,
+                "description": "İğne kalınlıkları, grip ve cartridge sistemleri, taper mantığı, bugpin iğneler ve seçim kriterleri."
+            },
+            {
+                "id": "lesson-2-2",
+                "title": "Makine, Voltaj ve Boya Yapısı",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 900,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Strok, voltaj ilişkisi, makine çeşitleri, pigment yapısı, renk karışımları ve 120 renk sistemi."
+            },
+            {
+                "id": "lesson-2-3",
+                "title": "Sarf Malzemeleri ve Stüdyo Ekipmanları",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 1020,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Stretch film, temizlik solüsyonları, transfer ürünleri, bandaj, maske, setup düzeni ve profesyonel ekipman çantası."
+            }
+        ]
+    },
+    {
+        "id": "module-3",
+        "title": "Dövme Tekniklerine Giriş",
+        "description": "Çizgi, gölge, dolgu ve stil temelleri üzerinden uygulama disiplinine giriş yapılır.",
+        "imageURL": null,
+        "isLocked": false,
+        "lessons": [
+            {
+                "id": "lesson-3-1",
+                "title": "Çizgi, Dotwork ve Gölge Temelleri",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 1080,
+                "order": 1,
+                "isCompleted": false,
+                "description": "Çizgi mantığı, nokta tekniği, gölge-dolgu, el pozisyonu, baskı ve iğne derinliği."
+            },
+            {
+                "id": "lesson-3-2",
+                "title": "Makine Kontrolü ve Teknik Gelişim",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 960,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Makine hissi, kombinasyonlar, tarzlara göre teknik, pozisyon ve gölge egzersizleri."
+            },
+            {
+                "id": "lesson-3-3",
+                "title": "Tarz Analizi ve Gelişim Takibi",
+                "videoURL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "duration": 840,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Dövme tarzlarını tanıma, tarz seçimi, gelişim egzersiz sistemi ve teknik seviye takibi."
+            }
+        ]
+    },
+    {
+        "id": "module-4",
+        "title": "Deri Anatomisi ve Hijyen",
+        "description": "Deri katmanları, hijyen protokolleri ve komplikasyon yönetimini kapsayan temel sağlık modülü.",
+        "imageURL": null,
+        "isLocked": true,
+        "lessons": [
+            {
+                "id": "lesson-4-1",
+                "title": "Derinin Yapısı ve Pigment Kalıcılığı",
+                "videoURL": null,
+                "duration": 960,
+                "order": 1,
+                "isCompleted": false,
+                "description": "Epidermis, dermis, hypodermis, pigmentin deride kalıcılığı ve yaşlanma etkileri."
+            },
+            {
+                "id": "lesson-4-2",
+                "title": "Hijyen Kuralları ve Sterilizasyon",
+                "videoURL": null,
+                "duration": 1020,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Sterilizasyon mantığı, tek kullanımlık sistemler, çapraz bulaşma, koruyucu ekipmanlar ve kritik uygulama adımları."
+            },
+            {
+                "id": "lesson-4-3",
+                "title": "Komplikasyonlar ve Dövme Sonrası Bakım",
+                "videoURL": null,
+                "duration": 900,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Alerjik reaksiyonlar, komplikasyon yönetimi, kabuklanma-iyileşme süreci ve güneş koruması."
+            }
+        ]
+    },
+    {
+        "id": "module-5",
+        "title": "Yapay Deri Uygulaması",
+        "description": "Fake skin üzerinde çizgi, gölge, dolgu ve düzeltme pratiklerini sistemli şekilde uygular.",
+        "imageURL": null,
+        "isLocked": true,
+        "lessons": [
+            {
+                "id": "lesson-5-1",
+                "title": "Fake Skin Çalışma Sistemi",
+                "videoURL": null,
+                "duration": 900,
+                "order": 1,
+                "isCompleted": false,
+                "description": "Profesyonel setup, stencil hazırlama, transfer ve fake skin çalışma mantığı."
+            },
+            {
+                "id": "lesson-5-2",
+                "title": "Çizgi, Gölge ve Dolgu Uygulamaları",
+                "videoURL": null,
+                "duration": 1140,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Yapay deri üzerinde çizgi, nokta, gölge ve dolgu çalışmaları ile tasarım uygulamaları."
+            },
+            {
+                "id": "lesson-5-3",
+                "title": "Touch-Up ve Yaygın Hatalar",
+                "videoURL": null,
+                "duration": 960,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Touch up teknikleri, cover-up mantığı, hata önleme, doğrular-yanlışlar ve kuralları kırmadan uygulama."
+            }
+        ]
+    },
+    {
+        "id": "module-6",
+        "title": "Dövme Tasarımı ve Kariyer",
+        "description": "Kompozisyon, portfolyo, müşteri iletişimi ve profesyonel kariyer yapılanmasını birleştirir.",
+        "imageURL": null,
+        "isLocked": true,
+        "lessons": [
+            {
+                "id": "lesson-6-1",
+                "title": "Kompozisyon ve Flow Tasarımı",
+                "videoURL": null,
+                "duration": 1020,
+                "order": 1,
+                "isCompleted": false,
+                "description": "Flow, negatif alan, kompozisyon mantığı, vücut anatomisine göre yerleşim ve referans tasarım."
+            },
+            {
+                "id": "lesson-6-2",
+                "title": "Portfolyo, Sosyal Medya ve İçerik",
+                "videoURL": null,
+                "duration": 900,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Portfolyo hazırlama, sosyal medya yönetimi, içerik üretimi ve fotoğraf-video düzenleme."
+            },
+            {
+                "id": "lesson-6-3",
+                "title": "Müşteri Süreci ve Kariyer Sistemi",
+                "videoURL": null,
+                "duration": 960,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Fiyatlandırma, makine alım kriterleri, müşteri mesajlaşması, randevu ve yasal süreçler."
+            }
+        ]
+    },
+    {
+        "id": "module-7",
+        "title": "Canlı Deri Uygulaması",
+        "description": "Gerçek deri üzerinde ilk uygulama, seans yönetimi ve son değerlendirme aşamasını içerir.",
+        "imageURL": null,
+        "isLocked": true,
+        "lessons": [
+            {
+                "id": "lesson-7-1",
+                "title": "Gerçek Deriye Geçiş ve İlk Tasarım",
+                "videoURL": null,
+                "duration": 1080,
+                "order": 1,
+                "isCompleted": false,
+                "description": "İlk dövme seçimi, uygun vücut bölgesi ve stencil yerleşimi ile gerçek deriye hazırlık."
+            },
+            {
+                "id": "lesson-7-2",
+                "title": "Uygulama Süreci ve Seans Yönetimi",
+                "videoURL": null,
+                "duration": 1140,
+                "order": 2,
+                "isCompleted": false,
+                "description": "Uygulama süreci, deri tepkisini takip etme, seans yönetimi ve uygulama disiplini."
+            },
+            {
+                "id": "lesson-7-3",
+                "title": "Gelişim Takibi ve Son Bölüm",
+                "videoURL": null,
+                "duration": 840,
+                "order": 3,
+                "isCompleted": false,
+                "description": "Eğitim değerlendirme tablosu, kaynaklar, sık sorulan sorular ve sertifikasyon kapanışı."
+            }
+        ]
+    }
+]
