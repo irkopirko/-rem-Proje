@@ -21,7 +21,8 @@ struct WelcomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .padding(.top, 10)
+                .padding(.top, 50)
+                .accessibilityLabel("Ink Akademi")
 
             VStack(alignment: .leading, spacing: 5) {
                 Text("Hayallerindeki dövmecilik kariyerin.")
@@ -30,7 +31,7 @@ struct WelcomeView: View {
             .font(.system(size: 19))
             .foregroundStyle(InkMockup.captionColor)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 14)
+            .padding(.top, 49)
 
             InkMockPrimaryButton(title: "Şimdi Katıl") {
                 router.showAuth()

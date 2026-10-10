@@ -17,8 +17,10 @@ struct OTPVerifyView: View {
             Image("inkakademi-logo")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 60)
+                .frame(height: 21)
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 19)
+                .accessibilityLabel("Ink Akademi")
 
             Text("Mail hesabına gönderdiğimiz kodu gir.")
                 .font(.system(size: 15))

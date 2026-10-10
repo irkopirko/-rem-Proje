@@ -7,10 +7,10 @@ struct LoginView: View {
 
     var body: some View {
         AuthFormLayout {
-            Image("inkakademi-logo-trimmed")
+            Image("inkakademi-logo")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 22)
+                .frame(height: 23)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 45)
                 .padding(.bottom, 21)
