@@ -8,17 +8,28 @@ final class DIContainer {
     let qrService: QRServiceProtocol
     let accessManager: AccessManager
     let router: AppRouter
+    let ecosystemCatalog: EcosystemCatalogServing
+    let userProgress: UserProgressController
+    let notificationPreferences: NotificationPreferencesStore
 
     // MARK: - Toggle: set to `true` to use Supabase, `false` for mock data
     static let useLiveBackend = true
 
+    /// Geçici: giriş ekranını atla, doğrudan ana uygulamayı aç.
+    /// Canlıya almadan önce `false` yapın.
+    static let skipLoginForDevelopment = true
+
     init(
         authService: AuthServiceProtocol = DIContainer.useLiveBackend ? SupabaseAuthService() : MockAuthService(),
-        moduleService: ModuleServiceProtocol = DIContainer.useLiveBackend ? SupabaseModuleService() : MockModuleService(),
+        // Modül listesi şimdilik yerel mock veriden gelir (Dövmeye Giriş, Dotwork, Linework).
+        moduleService: ModuleServiceProtocol = MockModuleService(),
         assignmentService: AssignmentServiceProtocol = DIContainer.useLiveBackend ? SupabaseAssignmentService() : MockAssignmentService(),
         qrService: QRServiceProtocol = DIContainer.useLiveBackend ? SupabaseQRService() : MockQRService(),
         accessManager: AccessManager = AccessManager(),
-        router: AppRouter = AppRouter()
+        router: AppRouter = AppRouter(),
+        ecosystemCatalog: EcosystemCatalogServing = MockEcosystemCatalogService(),
+        userProgress: UserProgressController = UserProgressController(),
+        notificationPreferences: NotificationPreferencesStore = NotificationPreferencesStore()
     ) {
         self.authService = authService
         self.moduleService = moduleService
@@ -26,6 +37,13 @@ final class DIContainer {
         self.qrService = qrService
         self.accessManager = accessManager
         self.router = router
+        self.ecosystemCatalog = ecosystemCatalog
+        self.userProgress = userProgress
+        self.notificationPreferences = notificationPreferences
+
+        if Self.skipLoginForDevelopment {
+            self.router.isAuthenticated = true
+        }
     }
 
     func makeAuthViewModel() -> AuthViewModel {
@@ -37,7 +55,9 @@ final class DIContainer {
             moduleService: moduleService,
             authService: authService,
             assignmentService: assignmentService,
-            accessManager: accessManager
+            accessManager: accessManager,
+            userProgress: userProgress,
+            ecosystem: ecosystemCatalog
         )
     }
 
@@ -57,9 +77,19 @@ final class DIContainer {
     func makeProfileViewModel() -> ProfileViewModel {
         ProfileViewModel(
             authService: authService,
-            moduleService: moduleService,
+            router: router,
+            userProgress: userProgress,
+            ecosystem: ecosystemCatalog
+        )
+    }
+
+    func makeAccountSettingsViewModel() -> AccountSettingsViewModel {
+        AccountSettingsViewModel(
+            authService: authService,
+            router: router,
+            userProgress: userProgress,
             assignmentService: assignmentService,
-            router: router
+            notificationPreferences: notificationPreferences
         )
     }
 }

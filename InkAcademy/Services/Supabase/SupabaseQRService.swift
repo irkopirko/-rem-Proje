@@ -6,7 +6,7 @@ final class SupabaseQRService: QRServiceProtocol {
 
     // MARK: - Unlock Module
 
-    func unlockModule(qrPayload: String) async throws -> TrainingModule {
+    func unlockModule(qrPayload: String) async throws -> CourseModule {
         // Look up the module linked to this QR code
         let rows: [QRCodeRow] = try await client.from("qr_codes")
             .select("module_id")
@@ -85,6 +85,18 @@ final class SupabaseQRService: QRServiceProtocol {
         return .lesson(row.toDomain())
     }
 
+    func resolveContent(qrPayload: String) async throws -> QRResolution {
+        let r = try await resolveLesson(qrPayload: qrPayload)
+        switch r {
+        case .lesson(let l):
+            return .lesson(l)
+        case .accessDenied:
+            return .accessDenied("Bu içerik için erişim izniniz yok.")
+        case .invalid:
+            return .invalid
+        }
+    }
+
     // MARK: - Parse QR Payload
 
     private static func lessonId(from payload: String) -> String? {
@@ -130,8 +142,8 @@ private struct ModuleQRRow: Codable {
     let order: Int
     let lessons: [LessonQRRow]?
 
-    func toDomain() -> TrainingModule {
-        TrainingModule(
+    func toDomain() -> CourseModule {
+        CourseModule(
             id: id,
             title: title,
             description: description,

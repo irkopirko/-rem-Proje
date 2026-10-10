@@ -1,0 +1,160 @@
+import SwiftUI
+
+struct ModuleDetailView: View {
+    let module: ModuleDTO
+    let container: DIContainer
+    @State private var catalog = CatalogService()
+    @State private var videos: [VideoDTO]?
+    @State private var loadError: String?
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 14) {
+                    Text(module.numberLabel)
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(InkMockup.cardFill))
+                    Text(module.title)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(InkMockup.textPrimary)
+                }
+
+                if let desc = module.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.system(size: 15))
+                        .foregroundStyle(InkMockup.textPrimary.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, 4)
+                }
+
+                if let videos {
+                    if videos.isEmpty {
+                        Text("Bu modüle henüz video eklenmedi.")
+                            .font(.system(size: 15))
+                            .foregroundStyle(InkMockup.captionColor)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 32)
+                    }
+                    ForEach(videos) { video in
+                        NavigationLink(value: video) {
+                            VideoRow(video: video)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else if let loadError {
+                    Text(loadError)
+                        .font(.system(size: 15))
+                        .foregroundStyle(InkMockup.captionColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                } else {
+                    ProgressView().frame(maxWidth: .infinity).padding(.top, 32)
+                }
+            }
+            .padding(.horizontal, InkMockup.screenHorizontal)
+            .padding(.vertical, 16)
+        }
+        .studentScreenBackground()
+        .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            videos = try await catalog.fetchModuleVideos(moduleId: module.id)
+            loadError = nil
+        } catch {
+            if videos == nil { loadError = error.localizedDescription }
+        }
+    }
+}
+
+private struct VideoRow: View {
+    let video: VideoDTO
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VideoThumbnail(url: video.thumbnailURL)
+                .frame(width: 128, height: 72)
+                .overlay(alignment: .bottomTrailing) {
+                    Text(video.durationLabel)
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 4))
+                        .padding(5)
+                }
+                .overlay(alignment: .bottom) {
+                    if video.progressFraction > 0 {
+                        GeometryReader { geo in
+                            Rectangle()
+                                .fill(InkMockup.accentPink)
+                                .frame(width: geo.size.width * video.progressFraction, height: 3)
+                                .frame(maxHeight: .infinity, alignment: .bottom)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Video \(video.numberLabel)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(InkMockup.captionColor)
+                Text(video.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 6) {
+                    if let quality = video.qualityLabel {
+                        Text(quality)
+                            .font(.system(size: 10, weight: .heavy))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(InkMockup.captionColor, lineWidth: 1))
+                            .foregroundStyle(InkMockup.captionColor)
+                    }
+                    if video.completed == true {
+                        Label("Tamamlandı", systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(InkMockup.cardFill.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+    }
+}
+
+/// CDN küçük resmi; `URLCache` sayesinde tekrar indirilmez.
+struct VideoThumbnail: View {
+    let url: URL?
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color.black.opacity(0.85))
+            if let url {
+                AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+            } else {
+                Image(systemName: "play.rectangle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}

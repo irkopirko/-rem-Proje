@@ -4,9 +4,16 @@ struct HomeView: View {
     @Bindable var viewModel: HomeViewModel
     let qrService: QRServiceProtocol
     @Bindable var accessManager: AccessManager
+    let moduleService: ModuleServiceProtocol
+    let assignmentService: AssignmentServiceProtocol
+    let ecosystem: EcosystemCatalogServing
 
     @State private var showQRScanner = false
     @State private var selectedLesson: Lesson?
+    @State private var selectedModuleFromQR: CourseModule?
+    @State private var selectedProduct: InkProduct?
+    @State private var qrInfoMessage: String?
+    @State private var showQrInfo = false
     @State private var selectedOffer: PaywallOffer?
 
     var body: some View {
@@ -23,6 +30,8 @@ struct HomeView: View {
                     AnimatedDashboardCard(delay: 0.02) {
                         todayTaskSection
                     }
+
+                    gamesSection
 
                     if let offer = viewModel.recommendedOffer {
                         VStack(alignment: .leading, spacing: AppSpacing.md) {
@@ -84,9 +93,16 @@ struct HomeView: View {
                     }
 
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        SectionHeaderView(text: "Canlı Dersler")
+                        SectionHeaderView(text: "Canlı yayın / workshop")
                         AnimatedDashboardCard(delay: 0.24) {
-                            LiveLessonCard()
+                            LiveLessonCard(session: viewModel.upcomingLiveSession)
+                        }
+                    }
+
+                    if let product = viewModel.suggestedProduct {
+                        VStack(alignment: .leading, spacing: AppSpacing.md) {
+                            SectionHeaderView(text: "Önerilen ekipman")
+                            suggestedProductCard(product)
                         }
                     }
                 }
@@ -94,11 +110,35 @@ struct HomeView: View {
                 .padding(.top, AppSpacing.lg)
                 .padding(.bottom, AppSpacing.xl)
             }
-            .background(Color.inkBackground)
+            .inkPageBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(item: $selectedLesson) { lesson in
                 LessonDetailView(viewModel: viewModel.makeLessonDetailViewModel(for: lesson))
+            }
+            .navigationDestination(item: $selectedModuleFromQR) { module in
+                ModuleDetailView(
+                    module: module,
+                    moduleService: moduleService,
+                    assignmentService: assignmentService,
+                    ecosystem: ecosystem
+                )
+            }
+            .navigationDestination(for: GameDestination.self) { game in
+                switch game {
+                case .hiddenObject:
+                    HiddenObjectGameView { score in
+                        viewModel.progressController.apply { progress in
+                            progress.xp += score
+                        }
+                    }
+                case .tattooMistake:
+                    TattooMistakeGameView { xp in
+                        viewModel.progressController.apply { progress in
+                            progress.xp += xp
+                        }
+                    }
+                }
             }
             .task {
                 await viewModel.loadData()
@@ -108,13 +148,32 @@ struct HomeView: View {
             }
             .loadingOverlay(isLoading: viewModel.isLoading)
             .sheet(isPresented: $showQRScanner) {
-                QRScannerFlowView(
-                    viewModel: QRScannerViewModel(qrService: qrService),
-                    onResolvedLesson: { lesson in
+                QRScannerFlowView(viewModel: QRScannerViewModel(qrService: qrService)) { result in
+                    switch result {
+                    case .lesson(let lesson):
                         selectedLesson = lesson
-                        showQRScanner = false
+                    case .module(let module):
+                        selectedModuleFromQR = module
+                    case .product(let product):
+                        selectedProduct = product
+                    case .bookPage(let content), .kitContent(let content):
+                        qrInfoMessage = content.description
+                        showQrInfo = true
+                    default:
+                        break
                     }
-                )
+                    showQRScanner = false
+                }
+            }
+            .sheet(item: $selectedProduct) { product in
+                NavigationStack {
+                    ProductDetailView(product: product, lessons: viewModel.modules.flatMap(\.lessons))
+                }
+            }
+            .alert("QR içeriği", isPresented: $showQrInfo) {
+                Button("Tamam", role: .cancel) {}
+            } message: {
+                Text(qrInfoMessage ?? "")
             }
             .sheet(item: $selectedOffer) { offer in
                 PaywallView(offer: offer, accessManager: accessManager)
@@ -181,6 +240,10 @@ struct HomeView: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Color.inkTextPrimary)
 
+                    Text(viewModel.dailyTaskTitle)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.inkAccent)
+
                     Text(todaySubtitle)
                         .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(Color.inkTextSecondary)
@@ -239,6 +302,53 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 .disabled(viewModel.currentLesson == nil)
             }
+        }
+    }
+
+    // MARK: - Games (placeholder)
+
+    private var gamesSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            SectionHeaderView(text: "Oyun")
+
+            NavigationLink {
+                GamesListView(userProgress: viewModel.progressController)
+                    .toolbar(.visible, for: .navigationBar)
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.inkAccentSoft)
+                            .frame(width: 56, height: 56)
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(Color.inkAccent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Günlük Oyunlar")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(Color.inkTextPrimary)
+                        Text("XP kazanmak için günlük oyunlarını oyna.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.inkTextSecondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.inkTextTertiary)
+                }
+                .padding(AppSpacing.lg)
+                .background(Color.inkSurface.opacity(0.85))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadii.card, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadii.card, style: .continuous)
+                        .stroke(Color.inkBorder, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -431,6 +541,42 @@ struct HomeView: View {
 
             Spacer()
         }
+    }
+
+    private func suggestedProductCard(_ product: InkProduct) -> some View {
+        Button {
+            selectedProduct = product
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: product.imageName)
+                    .font(.system(size: 22))
+                    .foregroundStyle(Color.inkAccent)
+                    .frame(width: 48, height: 48)
+                    .background(Color.inkAccentSoft.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(product.name)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.inkTextPrimary)
+                    Text(product.category.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.inkTextTertiary)
+                    Text(product.description)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.inkTextSecondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Color.inkTextTertiary)
+            }
+            .padding(AppSpacing.lg)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Helpers
@@ -646,9 +792,14 @@ struct HomeView: View {
             moduleService: MockModuleService(),
             authService: MockAuthService(),
             assignmentService: MockAssignmentService(),
-            accessManager: AccessManager()
+            accessManager: AccessManager(),
+            userProgress: UserProgressController(),
+            ecosystem: MockEcosystemCatalogService()
         ),
         qrService: MockQRService(),
-        accessManager: AccessManager()
+        accessManager: AccessManager(),
+        moduleService: MockModuleService(),
+        assignmentService: MockAssignmentService(),
+        ecosystem: MockEcosystemCatalogService()
     )
 }

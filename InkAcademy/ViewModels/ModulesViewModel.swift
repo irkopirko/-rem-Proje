@@ -2,7 +2,7 @@ import Foundation
 
 @Observable
 final class ModulesViewModel {
-    var modules: [TrainingModule] = []
+    var modules: [CourseModule] = []
     var searchText = ""
     var isLoading = false
     var errorMessage: String?
@@ -25,7 +25,7 @@ final class ModulesViewModel {
         self.accessManager = accessManager
     }
 
-    var filteredModules: [TrainingModule] {
+    var filteredModules: [CourseModule] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return modules }
 
@@ -35,15 +35,15 @@ final class ModulesViewModel {
         }
     }
 
-    var displayedModules: [TrainingModule] {
+    var displayedModules: [CourseModule] {
         accessManager.displayedModules(from: filteredModules)
     }
 
-    var unlockedModules: [TrainingModule] {
+    var unlockedModules: [CourseModule] {
         displayedModules.filter { !$0.isLocked }
     }
 
-    var lockedModules: [TrainingModule] {
+    var lockedModules: [CourseModule] {
         displayedModules.filter(\.isLocked)
     }
 

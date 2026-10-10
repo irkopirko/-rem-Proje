@@ -2,30 +2,40 @@ import Foundation
 
 @Observable
 final class HomeViewModel {
-    var modules: [TrainingModule] = []
+    var modules: [CourseModule] = []
     var assignments: [Assignment] = []
     var user: User?
     var isLoading = false
     var errorMessage: String?
 
+    var upcomingLiveSession: LiveSession?
+    var suggestedProduct: InkProduct?
+    var dailyTaskTitle: String = "Bugün: Hijyen kontrol listesini tamamla"
+
     private let moduleService: ModuleServiceProtocol
     private let authService: AuthServiceProtocol
     private let assignmentService: AssignmentServiceProtocol
     private let accessManager: AccessManager
+    private let userProgress: UserProgressController
+    private let ecosystem: EcosystemCatalogServing
 
     init(
         moduleService: ModuleServiceProtocol,
         authService: AuthServiceProtocol,
         assignmentService: AssignmentServiceProtocol,
-        accessManager: AccessManager
+        accessManager: AccessManager,
+        userProgress: UserProgressController,
+        ecosystem: EcosystemCatalogServing
     ) {
         self.moduleService = moduleService
         self.authService = authService
         self.assignmentService = assignmentService
         self.accessManager = accessManager
+        self.userProgress = userProgress
+        self.ecosystem = ecosystem
     }
 
-    // MARK: - Computed — Progress
+    // MARK: - Progress (ders kataloğu)
 
     var totalLessons: Int {
         modules.reduce(0) { $0 + $1.lessons.count }
@@ -44,19 +54,25 @@ final class HomeViewModel {
         return Double(completedLessons) / Double(totalLessons)
     }
 
-    // MARK: - Computed — Student Level
+    // MARK: - XP / seviye (paylaşılan mock ilerleme)
 
     var studentLevel: String {
-        StudentLevel.forCompletedLessons(completedLessons).title
+        userProgress.progress.currentLevel.title
     }
 
     var studentLevelIcon: String {
-        StudentLevel.forCompletedLessons(completedLessons).icon
+        userProgress.progress.currentLevel.icon
     }
 
-    // MARK: - Computed — Current Lesson
+    var experiencePoints: Int {
+        userProgress.progress.xp
+    }
 
-    var currentLesson: (module: TrainingModule, lesson: Lesson)? {
+    var progressController: UserProgressController {
+        userProgress
+    }
+
+    var currentLesson: (module: CourseModule, lesson: Lesson)? {
         for module in modules where accessManager.isUnlocked(module) {
             if let lesson = module.lessons.sorted(by: { $0.order < $1.order }).first(where: { !$0.isCompleted }) {
                 return (module, lesson)
@@ -77,8 +93,6 @@ final class HomeViewModel {
         accessManager.recommendedOffer
     }
 
-    // MARK: - Computed — Assignments
-
     var pendingAssignmentCount: Int {
         assignments.filter { $0.status == .pending }.count
     }
@@ -88,10 +102,6 @@ final class HomeViewModel {
             .filter { $0.status == .pending }
             .sorted { $0.dueDate < $1.dueDate }
             .first
-    }
-
-    var experiencePoints: Int {
-        (completedLessons * 120) + (completedModules * 300) + (pendingAssignmentCount * 20)
     }
 
     var latestFeedback: (feedback: Feedback, assignmentTitle: String)? {
@@ -114,9 +124,12 @@ final class HomeViewModel {
     func loadData() async {
         isLoading = true
         user = authService.currentUser
+        userProgress.syncUserId(authService.currentUser?.id ?? "local-demo-user")
 
         async let modulesResult = moduleService.fetchModules()
         async let assignmentsResult = assignmentService.fetchAssignments()
+        async let liveResult = ecosystem.fetchLiveSessions()
+        async let productsResult = ecosystem.fetchProducts()
 
         do {
             modules = try await modulesResult
@@ -127,8 +140,14 @@ final class HomeViewModel {
         do {
             assignments = try await assignmentsResult
         } catch {
-            // Assignments error non-fatal for home
+            // non-fatal
         }
+
+        let live = await liveResult
+        upcomingLiveSession = live.first
+
+        let products = await productsResult
+        suggestedProduct = products.first { $0.category == .needle } ?? products.first
 
         isLoading = false
     }

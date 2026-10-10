@@ -59,7 +59,7 @@ struct QuizView: View {
 
                             // Question type badge
                             HStack {
-                                typeBadge(isTrueFalse: question.isTrueFalse)
+                                typeBadge(for: question)
                                 Spacer()
                             }
 
@@ -112,11 +112,11 @@ struct QuizView: View {
 
     // MARK: - Type Badge
 
-    private func typeBadge(isTrueFalse: Bool) -> some View {
+    private func typeBadge(for question: Question) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: isTrueFalse ? "hand.thumbsup" : "list.bullet")
+            Image(systemName: question.typeBadgeIcon)
                 .font(.system(size: 10, weight: .semibold))
-            Text(isTrueFalse ? "Doğru / Yanlış" : "Çoktan Seçmeli")
+            Text(question.displayTypeLabel)
                 .font(.caption2.weight(.semibold))
         }
         .foregroundStyle(Color.inkTextTertiary)

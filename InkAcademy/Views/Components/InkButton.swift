@@ -6,6 +6,7 @@ struct InkButton: View {
     let title: String
     var isLoading: Bool = false
     var isDisabled: Bool = false
+    var accentColor: Color = .inkAccent
     let action: () -> Void
 
     var body: some View {
@@ -21,7 +22,7 @@ struct InkButton: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(isDisabled ? Color.inkTextTertiary : Color.inkAccent)
+            .background(isDisabled ? Color.inkTextTertiary : accentColor)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: AppRadii.md, style: .continuous))
         }

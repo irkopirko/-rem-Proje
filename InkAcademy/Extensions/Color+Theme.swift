@@ -10,8 +10,8 @@ extension Color {
 
     // MARK: - Core Surfaces
 
-    /// Warm parchment background – deep charcoal in dark mode
-    static let inkBackground       = Color(light: 0xF2EFE8, dark: 0x141210)
+    /// Warm parchment background – soft gray aligned with page gradient
+    static let inkBackground       = Color(light: 0xE8E6EB, dark: 0x242228)
     /// Card surface – warm ivory / dark elevated surface
     static let inkSurface          = Color(light: 0xFAF8F3, dark: 0x1E1B18)
     /// Secondary surface – warm beige / dark mid-tone
@@ -30,16 +30,21 @@ extension Color {
     /// Light tertiary / metadata text
     static let inkTextTertiary  = Color(light: 0xADA598, dark: 0x6A6358)
 
-    // MARK: - Primary Accent (Orange — brand CTA)
+    // MARK: - Primary Accent (Dark Purple — brand CTA)
 
-    /// Premium tattoo orange – main accent (brighter in dark for contrast)
-    static let inkAccent        = Color(light: 0xE8890C, dark: 0xF09A24)
+    /// Koyu mor — ana marka rengi
+    static let inkAccent        = Color(light: 0x4A2C6E, dark: 0x8B6BB1)
     /// Soft accent tint for backgrounds
-    static let inkAccentSoft    = Color(light: 0xFDF0D8, dark: 0x302414)
-    /// Muted gold / beige tint
-    static let inkAccentMuted   = Color(light: 0xEDE1CE, dark: 0x3A3028)
+    static let inkAccentSoft    = Color(light: 0xEDE8F4, dark: 0x2A2238)
+    /// Muted purple tint
+    static let inkAccentMuted   = Color(light: 0xD4C8E4, dark: 0x3A3048)
     /// Deep accent for gradients
-    static let inkAccentDeep    = Color(light: 0xC4700A, dark: 0xD07E12)
+    static let inkAccentDeep    = Color(light: 0x3A2258, dark: 0x6B4A96)
+
+    // MARK: - Page Gradient (soft gray)
+
+    static let inkGradientTop    = Color(light: 0xECEAEF, dark: 0x2C2A32)
+    static let inkGradientBottom = Color(light: 0xDAD7DF, dark: 0x222028)
 
     // MARK: - Teal Accent (Learning / Ink / Modules)
 

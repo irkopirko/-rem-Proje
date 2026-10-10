@@ -2,33 +2,46 @@ import SwiftUI
 
 struct ProfileView: View {
     @Bindable var viewModel: ProfileViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var selectedBadge: Badge?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppSpacing.sectionGap) {
+                    headerCard
 
-                    // 1 — Avatar + Identity
-                    avatarSection
+                    LevelCardView(
+                        level: viewModel.progress.currentLevel,
+                        xpText: viewModel.isOwnProfile ? viewModel.visibleXPText() : nil,
+                        progress: viewModel.progress.progressToNextLevel,
+                        remainingHint: viewModel.remainingXPHint(),
+                        supplementalHint: viewModel.supplementalGateHint()
+                    )
 
-                    // 2 — Progress Overview
-                    progressCard
+                    statsRow
 
-                    // 3 — Learning Stats
-                    learningStatsCard
+                    quizRow
 
-                    // 4 — Assignment Stats
-                    assignmentStatsCard
+                    badgesSection
 
-                    // 5 — Logout
+                    certificatesSection
+
+                    instructorSection
+
+                    demoActionsCard
+
                     logoutButton
                 }
                 .padding(.horizontal, AppSpacing.screenH)
                 .padding(.top, AppSpacing.sm)
                 .padding(.bottom, AppSpacing.xl)
             }
-            .background(Color.inkBackground)
+            .inkPageBackground()
             .navigationTitle("Profil")
+            .sheet(item: $selectedBadge) { badge in
+                BadgeDetailView(badge: badge)
+            }
             .task {
                 await viewModel.loadProfile()
             }
@@ -39,10 +52,10 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - 1. Avatar + Identity
+    // MARK: - Header
 
-    private var avatarSection: some View {
-        VStack(spacing: 16) {
+    private var headerCard: some View {
+        VStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(
@@ -53,13 +66,12 @@ struct ProfileView: View {
                         )
                     )
                     .frame(width: 84, height: 84)
-
                 Text(viewModel.initials)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }
 
-            Text(viewModel.displayName)
+            Text(viewModel.userName)
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(Color.inkTextPrimary)
 
@@ -69,134 +81,171 @@ struct ProfileView: View {
                     .foregroundStyle(Color.inkTextTertiary)
             }
 
-            HStack(spacing: 6) {
-                Image(systemName: viewModel.studentLevelIcon)
-                    .font(.system(size: 11))
-                Text(viewModel.studentLevel)
-                    .font(.system(size: 12, weight: .bold))
-                Text("·")
-                    .font(.system(size: 12, weight: .bold))
-                Text("XP \(viewModel.experiencePoints)")
-                    .font(.system(size: 12, weight: .bold))
-            }
-            .foregroundStyle(Color.inkAccent)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(Color.inkAccentSoft)
-            .clipShape(Capsule())
+            Text(viewModel.levelDescription())
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.inkTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 4)
+
+            Text(viewModel.progress.currentLevel.requirementText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.inkTextTertiary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(AppSpacing.lg)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.inkBorder.opacity(0.35), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.06), radius: 14, x: 0, y: 8)
     }
 
-    // MARK: - 2. Progress Overview
+    // MARK: - Stats
 
-    private var progressCard: some View {
-        HStack(spacing: 18) {
-            AnimatedProgressRing(
-                progress: viewModel.overallProgress,
-                lineWidth: 6,
-                size: 60,
-                tintColor: .inkTeal
+    private var statsRow: some View {
+        HStack(spacing: 12) {
+            ProfileStatCardView(
+                icon: "book.closed.fill",
+                title: "Tamamlanan ders",
+                value: "\(viewModel.progress.completedLessonIds.count)",
+                tint: .inkTeal
             )
+            ProfileStatCardView(
+                icon: "square.stack.3d.up.fill",
+                title: "Tamamlanan modül",
+                value: "\(viewModel.progress.completedModuleIds.count)",
+                tint: .inkAccent
+            )
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Genel İlerleme")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.inkTextPrimary)
+    private var quizRow: some View {
+        ProfileStatCardView(
+            icon: "checkmark.circle.trianglebadge.exclamationmark",
+            title: "Sınav puanı (mock)",
+            value: viewModel.quizAverageDisplay,
+            tint: .inkIndigo
+        )
+    }
 
-                Text("\(viewModel.completedLessons)/\(viewModel.totalLessons) ders tamamlandı")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.inkTextSecondary)
+    // MARK: - Badges
 
-                Text("\(viewModel.completedModules) modül bitirildi")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.inkTextTertiary)
+    private var badgesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(text: "Rozetler")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(viewModel.badges) { badge in
+                        BadgeCardView(badge: badge) {
+                            selectedBadge = badge
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
             }
+        }
+    }
 
-            Spacer()
+    // MARK: - Certificates
+
+    private var certificatesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(text: "Sertifikalar")
+            VStack(spacing: 10) {
+                ForEach(viewModel.certificates) { cert in
+                    HStack {
+                        Image(systemName: cert.isUnlocked ? "seal.fill" : "lock.fill")
+                            .foregroundStyle(cert.isUnlocked ? Color.inkSage : Color.inkTextTertiary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(cert.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text(cert.level)
+                                .font(.caption)
+                                .foregroundStyle(Color.inkTextTertiary)
+                        }
+                        Spacer()
+                        if cert.isUnlocked, let d = cert.issuedDate {
+                            Text(d.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption2)
+                                .foregroundStyle(Color.inkTextSecondary)
+                        } else {
+                            Text("Kilitli")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Color.inkWarning)
+                        }
+                    }
+                    .padding(AppSpacing.md)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+
+    private var instructorSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeaderView(text: "Eğitmen yorumu")
+            Text(viewModel.instructorComment)
+                .font(.subheadline)
+                .foregroundStyle(Color.inkTextSecondary)
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    // MARK: - Demo
+
+    private var demoActionsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(text: "Demo — XP akışı")
+            VStack(spacing: 10) {
+                demoButton(title: "Ders Tamamla +XP", icon: "play.circle.fill") {
+                    viewModel.completeDemoLesson()
+                }
+                demoButton(title: "Modül Tamamla +XP", icon: "checkmark.seal.fill") {
+                    viewModel.completeDemoModule()
+                }
+                demoButton(title: "Rozet Kazan +XP", icon: "medal.fill") {
+                    viewModel.earnDemoBadge()
+                }
+            }
         }
         .padding(AppSpacing.lg)
-        .premiumCard()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.inkBorder.opacity(0.35), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
     }
 
-    // MARK: - 3. Learning Stats
-
-    private var learningStatsCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SectionHeaderView(text: "Eğitim İstatistikleri")
-                .padding(.bottom, 8)
-
-            VStack(spacing: 0) {
-                ProfileStatRow(
-                    icon: "book.fill",
-                    title: "Tamamlanan Modül",
-                    value: "\(viewModel.completedModules)/\(viewModel.totalModules)",
-                    iconColor: .inkTeal
-                )
-
-                rowDivider
-
-                ProfileStatRow(
-                    icon: "checkmark.circle",
-                    title: "Tamamlanan Ders",
-                    value: "\(viewModel.completedLessons)/\(viewModel.totalLessons)",
-                    iconColor: .inkSage
-                )
-
-                rowDivider
-
-                ProfileStatRow(
-                    icon: "star.fill",
-                    title: "Ortalama Puan",
-                    value: viewModel.averageScoreFormatted,
-                    iconColor: .inkAccent
-                )
+    private func demoButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.inkTextTertiary)
             }
-            .padding(AppSpacing.md)
-            .premiumCard()
+            .padding(.horizontal, AppSpacing.md)
+            .frame(height: 50)
+            .foregroundStyle(Color.inkTextPrimary)
+            .background(Color.inkSurface.opacity(0.65))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - 4. Assignment Stats
-
-    private var assignmentStatsCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SectionHeaderView(text: "Ödev İstatistikleri")
-                .padding(.bottom, 8)
-
-            VStack(spacing: 0) {
-                ProfileStatRow(
-                    icon: "doc.text.fill",
-                    title: "Toplam Ödev",
-                    value: "\(viewModel.totalAssignments)",
-                    iconColor: .inkIndigo
-                )
-
-                rowDivider
-
-                ProfileStatRow(
-                    icon: "arrow.up.doc",
-                    title: "Gönderilen",
-                    value: "\(viewModel.submittedAssignments)",
-                    iconColor: .inkAccent
-                )
-
-                rowDivider
-
-                ProfileStatRow(
-                    icon: "checkmark.seal",
-                    title: "Değerlendirilen",
-                    value: "\(viewModel.reviewedAssignments)",
-                    iconColor: .inkSage
-                )
-            }
-            .padding(AppSpacing.md)
-            .premiumCard()
-        }
-    }
-
-    // MARK: - 5. Logout
+    // MARK: - Logout
 
     private var logoutButton: some View {
         Button {
@@ -218,20 +267,23 @@ struct ProfileView: View {
         }
         .padding(.top, 8)
     }
-
-    private var rowDivider: some View {
-        Divider()
-            .padding(.leading, 48)
-    }
 }
 
-// MARK: - Preview
-
-#Preview {
+#Preview("Kendi profili") {
     ProfileView(viewModel: ProfileViewModel(
         authService: MockAuthService(),
-        moduleService: MockModuleService(),
-        assignmentService: MockAssignmentService(),
-        router: AppRouter()
+        router: AppRouter(),
+        userProgress: UserProgressController(),
+        ecosystem: MockEcosystemCatalogService()
+    ))
+}
+
+#Preview("Başkasının profili") {
+    ProfileView(viewModel: ProfileViewModel(
+        authService: MockAuthService(),
+        router: AppRouter(),
+        userProgress: UserProgressController(),
+        ecosystem: MockEcosystemCatalogService(),
+        isOwnProfile: false
     ))
 }

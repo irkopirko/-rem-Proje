@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "product-18.jpg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

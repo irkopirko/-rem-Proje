@@ -1,11 +1,11 @@
 import Foundation
 
 final class MockModuleService: ModuleServiceProtocol {
-    private var modules: [TrainingModule] = []
+    private var modules: [CourseModule] = []
 
-    func fetchModules() async throws -> [TrainingModule] {
+    func fetchModules() async throws -> [CourseModule] {
         try await Task.sleep(for: .milliseconds(800))
-        var data = try MockDataLoader.load("modules", as: [TrainingModule].self)
+        var data = try MockDataLoader.load("modules", as: [CourseModule].self)
         let bundledVideoURL = Bundle.main.url(forResource: "demo", withExtension: "mp4")
 
         if let bundledVideoURL {

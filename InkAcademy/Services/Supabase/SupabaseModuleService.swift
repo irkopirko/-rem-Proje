@@ -6,7 +6,7 @@ final class SupabaseModuleService: ModuleServiceProtocol {
 
     // MARK: - Fetch Modules
 
-    func fetchModules() async throws -> [TrainingModule] {
+    func fetchModules() async throws -> [CourseModule] {
         // Fetch modules with nested lessons in a single query
         let rows: [ModuleRow] = try await client.from("modules")
             .select("*, lessons(*)")
@@ -105,8 +105,8 @@ private struct ModuleRow: Codable {
     let order: Int
     let lessons: [LessonRow]
 
-    func toDomain() -> TrainingModule {
-        TrainingModule(
+    func toDomain() -> CourseModule {
+        CourseModule(
             id: id,
             title: title,
             description: description,

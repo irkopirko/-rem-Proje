@@ -22,8 +22,10 @@ struct InkAcademyApp: App {
             }
             .animation(.easeInOut(duration: 0.3), value: container.router.isAuthenticated)
             .task {
-                // Restore Supabase session on launch (no-op for mock)
+                guard !DIContainer.skipLoginForDevelopment else { return }
+
                 if let supaAuth = container.authService as? SupabaseAuthService {
+                    await supaAuth.seedDevAccountIfNeeded()
                     await supaAuth.restoreSession()
                     if supaAuth.currentUser != nil {
                         container.router.isAuthenticated = true

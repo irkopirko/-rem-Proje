@@ -1,40 +1,58 @@
 import Foundation
 
 final class MockAuthService: AuthServiceProtocol {
+    private struct Account {
+        let password: String
+        let user: User
+    }
+
     private(set) var currentUser: User?
 
-    // Simulated registered accounts
-    private var registeredEmails: Set<String> = ["student@inkakademi.com"]
+    private var accounts: [String: Account] = [
+        "student@inkakademi.com": Account(
+            password: "123456",
+            user: User(
+                id: "user-demo",
+                name: "Ahmet Yılmaz",
+                email: "student@inkakademi.com",
+                role: .student,
+                avatarURL: nil
+            )
+        ),
+        "iremcelikk2@hotmail.com": Account(
+            password: "123Remi*",
+            user: User(
+                id: "user-irem",
+                name: "İrem Çelik",
+                email: "iremcelikk2@hotmail.com",
+                role: .student,
+                avatarURL: nil
+            )
+        )
+    ]
 
     func login(email: String, password: String) async throws -> User {
         try await Task.sleep(for: .seconds(1))
 
-        guard registeredEmails.contains(email.lowercased()) else {
-            throw AuthError.invalidCredentials
-        }
-        guard password.count >= 6 else {
+        let key = email.lowercased()
+        guard let account = accounts[key], account.password == password else {
             throw AuthError.invalidCredentials
         }
 
-        let user = User(
-            id: "user-1",
-            name: "Ahmet Yılmaz",
-            email: email,
-            role: .student,
-            avatarURL: nil
-        )
-        currentUser = user
-        return user
+        currentUser = account.user
+        return account.user
     }
 
     func register(name: String, email: String, password: String) async throws -> User {
         try await Task.sleep(for: .seconds(1.2))
 
-        guard !registeredEmails.contains(email.lowercased()) else {
+        let key = email.lowercased()
+        guard accounts[key] == nil else {
             throw AuthError.emailAlreadyInUse
         }
-
-        registeredEmails.insert(email.lowercased())
+        guard password.count >= 6 else {
+            throw AuthError.weakPassword
+        }
 
         let user = User(
             id: UUID().uuidString,
@@ -43,6 +61,7 @@ final class MockAuthService: AuthServiceProtocol {
             role: .student,
             avatarURL: nil
         )
+        accounts[key] = Account(password: password, user: user)
         currentUser = user
         return user
     }
@@ -50,10 +69,25 @@ final class MockAuthService: AuthServiceProtocol {
     func forgotPassword(email: String) async throws {
         try await Task.sleep(for: .seconds(1))
 
-        guard registeredEmails.contains(email.lowercased()) else {
+        guard accounts[email.lowercased()] != nil else {
             throw AuthError.userNotFound
         }
-        // Mock: pretend we sent a reset email
+    }
+
+    func changePassword(newPassword: String) async throws {
+        try await Task.sleep(for: .milliseconds(400))
+        guard newPassword.count >= 6 else { throw AuthError.weakPassword }
+        guard let user = currentUser,
+              let key = accounts.first(where: { $0.value.user.id == user.id })?.key,
+              let existing = accounts[key] else {
+            throw AuthError.userNotFound
+        }
+        accounts[key] = Account(password: newPassword, user: existing.user)
+    }
+
+    func requestAccountDeletion() async throws {
+        try await Task.sleep(for: .seconds(0.8))
+        currentUser = nil
     }
 
     func logout() async {

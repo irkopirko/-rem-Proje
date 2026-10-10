@@ -78,9 +78,62 @@ final class SupabaseAuthService: AuthServiceProtocol {
         }
     }
 
+    func changePassword(newPassword: String) async throws {
+        guard newPassword.count >= 6 else { throw AuthError.weakPassword }
+        do {
+            try await client.auth.update(user: UserAttributes(password: newPassword))
+        } catch {
+            throw mapAuthError(error)
+        }
+    }
+
+    func requestAccountDeletion() async throws {
+        guard let uid = currentUser?.id ?? (try? await client.auth.session.user.id.uuidString) else {
+            throw AuthError.userNotFound
+        }
+        struct DeletionPatch: Encodable {
+            let deleted_at: String
+            let deletion_requested: Bool
+        }
+        let iso = ISO8601DateFormatter().string(from: Date())
+        try await client.from("profiles")
+            .update(DeletionPatch(deleted_at: iso, deletion_requested: true))
+            .eq("id", value: uid)
+            .execute()
+        try await client.auth.signOut()
+        currentUser = nil
+    }
+
     // MARK: - Logout
 
     func logout() async {
+        try? await client.auth.signOut()
+        currentUser = nil
+    }
+
+    // MARK: - Dev Seed
+
+    /// Ensures the local dev account exists in Supabase Auth + profiles.
+    /// Safe to call on every launch — no-op if the account is already registered.
+    func seedDevAccountIfNeeded() async {
+        let email = "iremcelikk2@hotmail.com"
+        let password = "123Remi*"
+        let name = "İrem Çelik"
+
+        if (try? await login(email: email, password: password)) != nil {
+            try? await client.auth.signOut()
+            currentUser = nil
+            return
+        }
+
+        do {
+            _ = try await register(name: name, email: email, password: password)
+        } catch AuthError.emailAlreadyInUse {
+            return
+        } catch {
+            return
+        }
+
         try? await client.auth.signOut()
         currentUser = nil
     }

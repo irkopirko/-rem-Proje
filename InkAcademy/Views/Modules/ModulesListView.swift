@@ -3,6 +3,7 @@ import SwiftUI
 struct ModulesListView: View {
     @Bindable var viewModel: ModulesViewModel
     @Bindable var accessManager: AccessManager
+    let ecosystem: EcosystemCatalogServing
     @State private var scannedLesson: Lesson?
     @State private var selectedOffer: PaywallOffer?
 
@@ -16,68 +17,32 @@ struct ModulesListView: View {
                         ErrorBannerView(message: errorMessage)
                     }
 
-                    if !viewModel.unlockedModules.isEmpty {
-                        VStack(alignment: .leading, spacing: AppSpacing.md) {
-                            SectionHeaderView(text: "Eğitimler")
-
-                            LazyVGrid(
-                                columns: [
-                                    GridItem(.flexible(), spacing: 12),
-                                    GridItem(.flexible(), spacing: 12)
-                                ],
-                                spacing: 14
-                            ) {
-                                ForEach(viewModel.unlockedModules) { module in
-                                    NavigationLink(value: module) {
-                                        ModuleCardView(module: module)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                                }
-                            }
-                            .animation(.easeInOut(duration: 0.25), value: viewModel.unlockedModules.count)
-                        }
-                    }
-
-                    if !viewModel.lockedModules.isEmpty {
-                        VStack(alignment: .leading, spacing: AppSpacing.md) {
-                            SectionHeaderView(text: "Kilitli Modüller")
-
-                            LazyVGrid(
-                                columns: [
-                                    GridItem(.flexible(), spacing: 12),
-                                    GridItem(.flexible(), spacing: 12)
-                                ],
-                                spacing: 14
-                            ) {
-                                ForEach(viewModel.lockedModules) { module in
-                                    Button {
-                                        selectedOffer = accessManager.offer(for: module)
-                                    } label: {
-                                        ModuleCardView(module: module)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                                }
-                            }
-                            .animation(.easeInOut(duration: 0.25), value: viewModel.lockedModules.count)
-                        }
+                    ForEach(displayedModules) { module in
+                        moduleSection(module)
                     }
                 }
                 .padding(.horizontal, AppSpacing.screenH)
                 .padding(.top, AppSpacing.lg)
                 .padding(.bottom, AppSpacing.xl)
             }
-            .background(Color.inkBackground)
+            .inkPageBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .searchable(text: $viewModel.searchText, prompt: "Modül ara...")
-            .navigationDestination(for: TrainingModule.self) { module in
+            .navigationDestination(for: CourseModule.self) { module in
                 ModuleDetailView(
                     module: module,
                     moduleService: viewModel.moduleService,
-                    assignmentService: viewModel.assignmentService
+                    assignmentService: viewModel.assignmentService,
+                    ecosystem: ecosystem
                 )
+            }
+            .navigationDestination(for: Lesson.self) { lesson in
+                LessonDetailView(viewModel: LessonDetailViewModel(
+                    lesson: lesson,
+                    moduleService: viewModel.moduleService,
+                    assignmentService: viewModel.assignmentService
+                ))
             }
             .navigationDestination(item: $scannedLesson) { lesson in
                 LessonDetailView(viewModel: LessonDetailViewModel(
@@ -87,13 +52,12 @@ struct ModulesListView: View {
                 ))
             }
             .sheet(isPresented: $viewModel.showQRScanner) {
-                QRScannerFlowView(
-                    viewModel: QRScannerViewModel(qrService: viewModel.qrService),
-                    onResolvedLesson: { lesson in
+                QRScannerFlowView(viewModel: QRScannerViewModel(qrService: viewModel.qrService)) { result in
+                    if case .lesson(let lesson) = result {
                         scannedLesson = lesson
-                        viewModel.showQRScanner = false
                     }
-                )
+                    viewModel.showQRScanner = false
+                }
             }
             .sheet(item: $selectedOffer) { offer in
                 PaywallView(offer: offer, accessManager: accessManager)
@@ -105,6 +69,81 @@ struct ModulesListView: View {
                 await viewModel.loadModules()
             }
             .loadingOverlay(isLoading: viewModel.isLoading)
+        }
+    }
+
+    // MARK: - Module Section
+
+    private var displayedModules: [CourseModule] {
+        let query = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return viewModel.modules }
+        return viewModel.modules.filter {
+            $0.title.localizedCaseInsensitiveContains(query) ||
+            $0.description.localizedCaseInsensitiveContains(query) ||
+            $0.lessons.contains { $0.title.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
+    @ViewBuilder
+    private func moduleSection(_ module: CourseModule) -> some View {
+        let isLocked = !accessManager.isUnlocked(module)
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(module.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Color.inkTextPrimary)
+
+                    Text("\(module.completedLessonsCount)/\(module.lessons.count) ders tamamlandı")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.inkTextSecondary)
+                }
+
+                Spacer()
+
+                if isLocked {
+                    Button {
+                        selectedOffer = accessManager.offer(for: module)
+                    } label: {
+                        Label("Kilitli", systemImage: "lock.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.inkRose)
+                    }
+                } else {
+                    NavigationLink(value: module) {
+                        Text("Detay")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.inkAccent)
+                    }
+                }
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(module.lessons.sorted(by: { $0.order < $1.order }).enumerated()), id: \.element.id) { index, lesson in
+                    if isLocked {
+                        LessonRowView(lesson: lesson, index: index + 1, isLocked: true)
+                            .padding(.horizontal, AppSpacing.md)
+                    } else {
+                        NavigationLink(value: lesson) {
+                            LessonRowView(lesson: lesson, index: index + 1)
+                                .padding(.horizontal, AppSpacing.md)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if index < module.lessons.count - 1 {
+                        Divider().padding(.leading, 62)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            .background(Color.inkSurface.opacity(0.88))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.inkBorder.opacity(0.5), lineWidth: 0.5)
+            )
         }
     }
 
@@ -138,7 +177,7 @@ struct ModulesListView: View {
                         progress: viewModel.overallProgress,
                         lineWidth: 5,
                         size: 52,
-                        tintColor: .inkTeal
+                        tintColor: .inkAccent
                     )
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -155,8 +194,7 @@ struct ModulesListView: View {
                 }
 
                 HStack(spacing: 10) {
-                    summaryPill(title: "Açık", value: "\(viewModel.unlockedModules.count)", accent: .inkTeal)
-                    summaryPill(title: "Kilitli", value: "\(viewModel.lockedModules.count)", accent: .inkRose)
+                    summaryPill(title: "Modül", value: "\(viewModel.modules.count)", accent: .inkAccent)
                     summaryPill(title: "Tamamlanan", value: "\(viewModel.completedLessonsCount)", accent: .inkSage)
                 }
             }
@@ -234,6 +272,7 @@ struct ModulesListView: View {
             assignmentService: MockAssignmentService(),
             accessManager: AccessManager()
         ),
-        accessManager: AccessManager()
+        accessManager: AccessManager(),
+        ecosystem: MockEcosystemCatalogService()
     )
 }

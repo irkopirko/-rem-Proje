@@ -2,11 +2,13 @@ import SwiftUI
 
 struct AssignmentsListView: View {
     @Bindable var viewModel: AssignmentsViewModel
+    let ecosystem: EcosystemCatalogServing
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.sectionGap) {
+                    practiceEntryRow
                     summaryCard
 
                     if let errorMessage = viewModel.errorMessage {
@@ -33,7 +35,7 @@ struct AssignmentsListView: View {
                 .padding(.top, AppSpacing.lg)
                 .padding(.bottom, AppSpacing.xl)
             }
-            .background(Color.inkBackground)
+            .inkPageBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Assignment.self) { assignment in
@@ -56,6 +58,36 @@ struct AssignmentsListView: View {
                 }
             }
         }
+    }
+
+    private var practiceEntryRow: some View {
+        NavigationLink {
+            PracticeView(ecosystem: ecosystem)
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "paintpalette.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.inkAccent)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Pratik alanı")
+                        .font(.headline)
+                    Text("Stencil, fake skin ve çizim görevleri")
+                        .font(.caption)
+                        .foregroundStyle(Color.inkTextSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Color.inkTextTertiary)
+            }
+            .padding(AppSpacing.lg)
+            .background(Color.inkSurface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadii.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadii.card, style: .continuous)
+                    .stroke(Color.inkBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Summary Card
@@ -222,7 +254,10 @@ struct AssignmentsListView: View {
 }
 
 #Preview {
-    AssignmentsListView(viewModel: AssignmentsViewModel(
-        assignmentService: MockAssignmentService()
-    ))
+    AssignmentsListView(
+        viewModel: AssignmentsViewModel(
+            assignmentService: MockAssignmentService()
+        ),
+        ecosystem: MockEcosystemCatalogService()
+    )
 }

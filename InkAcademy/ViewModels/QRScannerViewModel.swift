@@ -20,6 +20,7 @@ final class QRScannerViewModel {
     var cameraPermissionState: CameraPermissionState = .unknown
     var status: ScanStatus = .idle
     var resolvedLesson: Lesson?
+    var resolvedContent: QRResolution?
     var isProcessing = false
 
     private let qrService: QRServiceProtocol
@@ -57,15 +58,19 @@ final class QRScannerViewModel {
         status = .processing
 
         do {
-            let result = try await qrService.resolveLesson(qrPayload: trimmed)
+            let result = try await qrService.resolveContent(qrPayload: trimmed)
+            resolvedContent = result
             switch result {
             case .lesson(let lesson):
                 resolvedLesson = lesson
                 status = .success
+            case .accessDenied(let message):
+                status = .accessDenied(message)
             case .invalid:
                 status = .invalid("Geçersiz QR kodu. Lütfen tekrar deneyin.")
-            case .accessDenied:
-                status = .accessDenied("Bu ders için erişim izniniz yok.")
+            default:
+                resolvedLesson = nil
+                status = .success
             }
         } catch {
             status = .invalid("Kod doğrulanamadı. Lütfen tekrar deneyin.")
@@ -76,6 +81,7 @@ final class QRScannerViewModel {
 
     func reset() {
         resolvedLesson = nil
+        resolvedContent = nil
         status = .idle
         isProcessing = false
     }

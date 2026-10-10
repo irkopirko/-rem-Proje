@@ -32,6 +32,8 @@ Pods/
 # Env / secrets
 .env
 .env.local
+backend/node_modules/
+ireminkakademi/Config/Secrets.xcconfig
 
 # Misc
 *.log
@@ -45,3 +47,7 @@ Pods/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
+
+# Local xcodebuild output
+.derivedData*/
+backend/node_modules/

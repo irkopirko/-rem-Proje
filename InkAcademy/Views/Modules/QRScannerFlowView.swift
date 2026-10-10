@@ -3,7 +3,7 @@ import SwiftUI
 
 struct QRScannerFlowView: View {
     @Bindable var viewModel: QRScannerViewModel
-    var onResolvedLesson: (Lesson) -> Void
+    var onResolved: (QRResolution) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var manualCode = ""
@@ -36,20 +36,20 @@ struct QRScannerFlowView: View {
             .task {
                 await viewModel.requestCameraAccess()
             }
-            .onChange(of: viewModel.resolvedLesson) { _, lesson in
-                guard let lesson else { return }
-                onResolvedLesson(lesson)
+            .onChange(of: viewModel.resolvedContent) { _, newValue in
+                guard let newValue, viewModel.status == .success else { return }
+                onResolved(newValue)
             }
         }
     }
 
     private var header: some View {
         VStack(spacing: 6) {
-            Text("Ders Kilidini Aç")
+            Text("QR ile içeriğe git")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(Color.inkTextPrimary)
 
-            Text("QR kodu taratın ve ilgili derse hızlıca gidin.")
+            Text("Ders, modül, ürün, kitap veya kit içeriği — kod formatına göre yönlendirilirsin.")
                 .font(.subheadline)
                 .foregroundStyle(Color.inkTextSecondary)
                 .multilineTextAlignment(.center)
@@ -131,7 +131,7 @@ struct QRScannerFlowView: View {
 
     private var manualEntrySection: some View {
         VStack(spacing: 12) {
-            TextField("Kod girin (ör. INKA:lesson-1-1)", text: $manualCode)
+            TextField("Kod (INKA:… veya INK-PRODUCT-…)", text: $manualCode)
                 .textInputAutocapitalization(.never)
                 .padding(12)
                 .background(Color.inkSurface)
@@ -287,7 +287,5 @@ private struct QRCodeScannerView: UIViewRepresentable {
 }
 
 #Preview {
-    QRScannerFlowView(viewModel: QRScannerViewModel(qrService: MockQRService())) { lesson in
-        print(lesson.id)
-    }
+    QRScannerFlowView(viewModel: QRScannerViewModel(qrService: MockQRService())) { _ in }
 }

@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "9D555D5C-8087-45B6-B9E8-B650F19A5639",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:ireminkakademi.xcodeproj",
+      "identifier" : "0C312DF52F7539FA00C752E5",
+      "name" : "ireminkakademi"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:ireminkakademi.xcodeproj",
+        "identifier" : "0C312E022F7539FB00C752E5",
+        "name" : "ireminkakademiTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:ireminkakademi.xcodeproj",
+        "identifier" : "0C312E0C2F7539FB00C752E5",
+        "name" : "ireminkakademiUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

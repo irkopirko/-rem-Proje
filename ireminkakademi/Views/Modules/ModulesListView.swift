@@ -1,0 +1,172 @@
+import SwiftUI
+
+struct ModulesListView: View {
+    let container: DIContainer
+    @State private var catalog = CatalogService()
+    @State private var data: CatalogResponse?
+    @State private var loadError: String?
+    @State private var isLoading = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    InkMockSectionTitle(text: "Eğitimler")
+
+                    if let live = data?.liveSession, let url = URL(string: live.streamUrl) {
+                        Link(destination: url) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "dot.radiowaves.left.and.right")
+                                    .font(.system(size: 26))
+                                    .foregroundStyle(InkMockup.accentPink)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Canlı Yayın").font(.system(size: 13, weight: .bold)).foregroundStyle(InkMockup.accentPink)
+                                    Text(live.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(InkMockup.textPrimary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
+                            }
+                            .padding(16)
+                            .background(InkMockup.cardFill.opacity(0.95))
+                            .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+                        }
+                    }
+
+                    if let next = data?.nextVideo {
+                        NavigationLink(value: next) {
+                            ContinueWatchingCard(video: next)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    InkMockSubheading(text: "Modüller")
+
+                    if let modules = data?.modules {
+                        if modules.isEmpty {
+                            emptyState("Henüz yayınlanmış modül yok.")
+                        }
+                        ForEach(modules) { module in
+                            NavigationLink(value: module) {
+                                ModuleCard(module: module)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } else if let loadError {
+                        emptyState(loadError)
+                    } else {
+                        ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
+                    }
+                }
+                .padding(.horizontal, InkMockup.screenHorizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+            .studentScreenBackground()
+            .refreshable { await load() }
+            .navigationDestination(for: ModuleDTO.self) { module in
+                ModuleDetailView(module: module, container: container)
+            }
+            .navigationDestination(for: VideoDTO.self) { video in
+                VideoPlayerScreen(video: video, reportsProgress: container.sessionUser?.role == .student)
+            }
+            .task { if data == nil { await load() } }
+        }
+    }
+
+    private func load() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            data = try await catalog.fetchCatalog()
+            loadError = nil
+        } catch {
+            if data == nil { loadError = error.localizedDescription }
+        }
+    }
+
+    private func emptyState(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 15))
+            .foregroundStyle(InkMockup.captionColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 32)
+    }
+}
+
+private struct ModuleCard: View {
+    let module: ModuleDTO
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                Text(module.numberLabel)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color.inkAccentSoft))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(module.title)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(InkMockup.textPrimary)
+                        .multilineTextAlignment(.leading)
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundStyle(InkMockup.captionColor)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
+            }
+
+            if let desc = module.description, !desc.isEmpty {
+                Text(desc)
+                    .font(.system(size: 14))
+                    .foregroundStyle(InkMockup.captionColor)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+
+            if module.videoCount > 0 {
+                ProgressView(value: Double(module.completedCount), total: Double(module.videoCount))
+                    .tint(InkMockup.accentPink)
+            }
+        }
+        .padding(16)
+        .background(InkMockup.cardFill.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+    }
+
+    private var subtitle: String {
+        guard module.videoCount > 0 else { return "Yakında" }
+        return "\(module.videoCount) video · \(module.completedCount) tamamlandı"
+    }
+}
+
+private struct ContinueWatchingCard: View {
+    let video: VideoDTO
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VideoThumbnail(url: video.thumbnailURL)
+                .frame(width: 120, height: 68)
+                .overlay(Image(systemName: "play.fill").font(.system(size: 20)).foregroundStyle(.white))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sıradaki video")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(InkMockup.accentPink)
+                Text(video.title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Text(video.durationLabel)
+                    .font(.system(size: 12))
+                    .foregroundStyle(InkMockup.captionColor)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(InkMockup.cardFill.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+    }
+}

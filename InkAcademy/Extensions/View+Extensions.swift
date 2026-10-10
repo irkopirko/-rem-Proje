@@ -32,4 +32,16 @@ extension View {
             .font(AppFont.sectionTitle())
             .foregroundStyle(Color.inkTextPrimary)
     }
+
+    /// Soft gray gradient page background used across main tabs.
+    func inkPageBackground() -> some View {
+        background {
+            LinearGradient(
+                colors: [Color.inkGradientTop, Color.inkGradientBottom],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        }
+    }
 }

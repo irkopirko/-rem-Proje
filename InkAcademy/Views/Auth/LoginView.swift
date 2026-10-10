@@ -14,26 +14,10 @@ struct LoginView: View {
                     // MARK: - Logo
 
                     VStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.inkAccent, Color.inkGoldMuted],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 76, height: 76)
-
-                            Image(systemName: "paintbrush.pointed.fill")
-                                .font(.system(size: 34, weight: .light))
-                                .foregroundStyle(Color.inkWhite)
-                        }
-
-                        Text("INKAKADEMİ")
-                            .font(.system(size: 26, weight: .bold, design: .default))
-                            .tracking(2)
-                            .foregroundStyle(Color.inkBlack)
+                        Image("InkAkademiLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 300)
 
                         Text("Dövme Sanatı Eğitim Platformu")
                             .font(.subheadline)
@@ -83,7 +67,7 @@ struct LoginView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.inkGold.opacity(0.12), lineWidth: 0.8)
+                            .stroke(Color.inkBlack.opacity(0.08), lineWidth: 0.8)
                     )
                     .padding(.horizontal, 20)
                     .opacity(didAppear ? 1 : 0)
@@ -109,7 +93,8 @@ struct LoginView: View {
 
                     InkButton(
                         title: "Giriş Yap",
-                        isLoading: viewModel.isLoading
+                        isLoading: viewModel.isLoading,
+                        accentColor: .inkAccent
                     ) {
                         Task { await viewModel.login() }
                     }
@@ -118,7 +103,7 @@ struct LoginView: View {
 
                     // MARK: - Demo hint
 
-                    Text("Demo: student@inkakademi.com / 123456")
+                    Text("Demo: iremcelikk2@hotmail.com / 123Remi*")
                         .font(.caption2)
                         .foregroundStyle(Color.inkTextTertiary)
                         .padding(.top, 12)
@@ -146,7 +131,7 @@ struct LoginView: View {
                     .padding(.bottom, 40)
                 }
             }
-            .background(Color.inkBackground)
+            .inkPageBackground()
             .scrollDismissesKeyboard(.interactively)
             .navigationDestination(isPresented: $showRegister) {
                 RegisterView(viewModel: viewModel)

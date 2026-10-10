@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - Live Lesson Card (placeholder for upcoming feature)
-
 struct LiveLessonCard: View {
+    var session: LiveSession?
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
@@ -16,23 +16,32 @@ struct LiveLessonCard: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Canlı Ders")
-                    .font(.system(size: 15, weight: .medium))
+                Text(session?.title ?? "Canlı yayın")
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.inkTextPrimary)
 
-                Text("Yakında aktif olacak")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.inkTextTertiary)
+                if let session {
+                    Text(session.startDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.inkTextSecondary)
+                    Text(session.instructorName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.inkTextTertiary)
+                } else {
+                    Text("Yakında aktif olacak")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.inkTextTertiary)
+                }
             }
 
             Spacer()
 
-            Text("Yakında")
+            Text(session == nil ? "Yakında" : "Katıl")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.inkTextTertiary)
+                .foregroundStyle(session == nil ? Color.inkTextTertiary : Color.inkAccent)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.inkSurfaceSecondary)
+                .background(Color.inkAccentSoft.opacity(session == nil ? 0.2 : 0.45))
                 .clipShape(Capsule())
         }
         .padding(AppSpacing.lg)
@@ -42,12 +51,21 @@ struct LiveLessonCard: View {
             RoundedRectangle(cornerRadius: AppRadii.card, style: .continuous)
                 .stroke(Color.inkBorder, lineWidth: 1)
         )
-        .opacity(0.6)
+        .opacity(session == nil ? 0.65 : 1)
     }
 }
 
 #Preview {
-    LiveLessonCard()
-        .padding()
-        .background(Color.inkBackground)
+    LiveLessonCard(session: LiveSession(
+        id: "1",
+        title: "Packing Q&A",
+        description: "Demo",
+        startDate: .now,
+        instructorName: "Usta Deniz",
+        meetingURL: nil,
+        isReplayAvailable: false,
+        replayURL: nil
+    ))
+    .padding()
+    .background(Color.inkBackground)
 }

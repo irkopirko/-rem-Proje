@@ -162,7 +162,7 @@ final class AccessManager {
         }
     }
 
-    func requiredTier(for module: TrainingModule) -> MembershipTier {
+    func requiredTier(for module: CourseModule) -> MembershipTier {
         switch module.id {
         case "module-1", "module-2", "module-3":
             return .demo
@@ -177,11 +177,11 @@ final class AccessManager {
         }
     }
 
-    func isUnlocked(_ module: TrainingModule) -> Bool {
+    func isUnlocked(_ module: CourseModule) -> Bool {
         currentTier >= requiredTier(for: module)
     }
 
-    func displayedModules(from modules: [TrainingModule]) -> [TrainingModule] {
+    func displayedModules(from modules: [CourseModule]) -> [CourseModule] {
         modules.map { module in
             var copy = module
             copy.isLocked = !isUnlocked(module)
@@ -189,7 +189,7 @@ final class AccessManager {
         }
     }
 
-    func offer(for module: TrainingModule) -> PaywallOffer {
+    func offer(for module: CourseModule) -> PaywallOffer {
         PaywallOffer.forTier(requiredTier(for: module), moduleTitle: module.title)
     }
 

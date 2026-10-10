@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ModuleCardView: View {
-    let module: TrainingModule
+    let module: CourseModule
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -193,7 +193,7 @@ struct ModuleCardView: View {
 #Preview {
     VStack(spacing: 16) {
         HStack(spacing: 12) {
-            ModuleCardView(module: TrainingModule(
+            ModuleCardView(module: CourseModule(
                 id: "1", title: "Dövme Sanatına Giriş",
                 description: "Temel bilgiler ve güvenlik kuralları",
                 imageURL: nil,
@@ -203,7 +203,7 @@ struct ModuleCardView: View {
                 ],
                 isLocked: false
             ))
-            ModuleCardView(module: TrainingModule(
+            ModuleCardView(module: CourseModule(
                 id: "2", title: "Gölgelendirme",
                 description: "İleri seviye teknikler",
                 imageURL: nil, lessons: [], isLocked: true

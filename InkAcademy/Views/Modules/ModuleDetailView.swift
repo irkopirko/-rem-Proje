@@ -1,22 +1,24 @@
 import SwiftUI
 
 struct ModuleDetailView: View {
-    let module: TrainingModule
+    let module: CourseModule
     let moduleService: ModuleServiceProtocol
     let assignmentService: AssignmentServiceProtocol
+    let ecosystem: EcosystemCatalogServing
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.sectionGap) {
                 headerSection
                 progressCard
+                practiceLinkRow
                 lessonsCard
             }
             .padding(.horizontal, AppSpacing.screenH)
             .padding(.top, 8)
             .padding(.bottom, 100)
         }
-        .background(Color.inkBackground)
+        .inkPageBackground()
         .navigationTitle(module.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Lesson.self) { lesson in
@@ -108,6 +110,26 @@ struct ModuleDetailView: View {
         .premiumCard()
     }
 
+    private var practiceLinkRow: some View {
+        NavigationLink {
+            PracticeView(ecosystem: ecosystem)
+        } label: {
+            HStack {
+                Image(systemName: "paintbrush.pointed.fill")
+                    .foregroundStyle(Color.inkAccent)
+                Text("Pratik alanına git")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.inkTextTertiary)
+            }
+            .padding(AppSpacing.lg)
+            .premiumCard()
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - 3. Lessons
 
     private var lessonsCard: some View {
@@ -152,7 +174,7 @@ struct ModuleDetailView: View {
 #Preview {
     NavigationStack {
         ModuleDetailView(
-            module: TrainingModule(
+            module: CourseModule(
                 id: "1",
                 title: "Dövme Sanatına Giriş",
                 description: "Bu modülde dövme sanatının temel prensiplerini, tarihçesini ve güvenlik kurallarını öğreneceksin.",
@@ -166,7 +188,8 @@ struct ModuleDetailView: View {
                 isLocked: false
             ),
             moduleService: MockModuleService(),
-            assignmentService: MockAssignmentService()
+            assignmentService: MockAssignmentService(),
+            ecosystem: MockEcosystemCatalogService()
         )
     }
 }
