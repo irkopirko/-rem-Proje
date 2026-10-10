@@ -43,6 +43,16 @@ app.use('/auth', limiter(15 * 60 * 1000, 300), authRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'ink-akademi-api' }));
 
+// Mail clients embed these images from other origins.
+app.use(
+  '/static',
+  (_req, res, next) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(new URL('../public', import.meta.url).pathname, { maxAge: '7d', index: false })
+);
+
 app.use('/webhooks', limiter(60 * 1000, 600), webhookRoutes);
 app.use('/media', limiter(60 * 1000, 1200), mediaRoutes);
 app.use('/v1', limiter(60 * 1000, 1200));

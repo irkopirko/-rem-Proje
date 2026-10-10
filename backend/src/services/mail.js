@@ -89,11 +89,14 @@ async function sendQuietly(message) {
 
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://ink-akademi-api-production.up.railway.app').replace(/\/$/, '');
+const LOGO_URL = `${PUBLIC_BASE_URL}/static/mail-logo.png`;
+
 function layout(title, bodyHtml) {
   return `<!doctype html><html lang="tr"><body style="margin:0;background:#f4f1ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#111">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;padding:32px">
-      <tr><td style="font-size:20px;font-weight:800;letter-spacing:2px">INK AKADEMI</td></tr>
+      <tr><td align="center" style="padding-bottom:8px"><img src="${LOGO_URL}" width="200" height="26" alt="INK AKADEMI" style="display:block;margin:0 auto;border:0;width:200px;height:auto;font-size:20px;font-weight:800;letter-spacing:2px;color:#111"></td></tr>
       <tr><td style="padding-top:20px;font-size:18px;font-weight:700">${escapeHtml(title)}</td></tr>
       <tr><td style="padding-top:12px;font-size:15px;line-height:1.5">${bodyHtml}</td></tr>
       <tr><td style="padding-top:28px;font-size:13px;color:#777">Sevgiler,<br>Ink Akademi Ekibi</td></tr>
