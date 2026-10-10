@@ -4,13 +4,43 @@ let transporter;
 
 export class MailDeliveryError extends Error {}
 
+const DEFAULT_FROM = 'Ink Akademi <noreply@inkakademionline.com>';
+
 export function isMailConfigured() {
-  return Boolean(process.env.SMTP_HOST);
+  return Boolean(process.env.BREVO_API_KEY || process.env.SMTP_HOST);
+}
+
+function parseSender(value) {
+  const match = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(value);
+  return match ? { name: match[1] || undefined, email: match[2] } : { email: value.trim() };
+}
+
+// Railway blocks outbound SMTP below the Pro plan, so Brevo's HTTPS API is preferred when a key is present.
+async function sendViaBrevoApi({ to, subject, text, html }) {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      sender: parseSender(process.env.MAIL_FROM || DEFAULT_FROM),
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const err = new Error(body.slice(0, 300));
+    err.code = `HTTP_${res.status}`;
+    throw err;
+  }
+  return res.json();
 }
 
 function getTransporter() {
   if (transporter) return transporter;
-  if (!isMailConfigured()) return null;
+  if (!process.env.SMTP_HOST) return null;
   const port = Number(process.env.SMTP_PORT || 587);
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -26,15 +56,17 @@ function getTransporter() {
 }
 
 export async function sendMail({ to, subject, text, html }) {
-  const tx = getTransporter();
-  if (!tx) {
-    // No SMTP yet: the message is only written to the server log so the flow can still be tested.
+  if (!isMailConfigured()) {
+    // No mail provider yet: the message is only written to the server log so the flow can still be tested.
     console.log('[mail:dev]', { to, subject, text });
     return { dev: true };
   }
   try {
-    return await tx.sendMail({
-      from: process.env.MAIL_FROM || 'Ink Akademi <noreply@inkakademionline.com>',
+    if (process.env.BREVO_API_KEY) {
+      return await sendViaBrevoApi({ to, subject, text, html });
+    }
+    return await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || DEFAULT_FROM,
       to,
       subject,
       text,
