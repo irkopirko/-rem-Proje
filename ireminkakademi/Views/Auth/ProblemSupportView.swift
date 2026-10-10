@@ -9,7 +9,7 @@ struct ProblemSupportView: View {
 
             Text("Hesabına girerken sorun yaşadığın için üzgünüz.")
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(InkMockup.textPrimary)
+                .foregroundStyle(InkAuth.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             InkMockPrimaryButton(title: "Şifremi Unuttum") {
@@ -19,7 +19,7 @@ struct ProblemSupportView: View {
 
             Text("Ya da")
                 .font(.system(size: 14))
-                .foregroundStyle(InkMockup.captionColor)
+                .foregroundStyle(InkAuth.captionColor)
 
             InkMockPrimaryButton(title: "Bize Ulaş") {
                 path.append(AuthRoute.contact)

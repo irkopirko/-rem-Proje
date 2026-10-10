@@ -15,6 +15,7 @@ import communityRoutes from './routes/community.js';
 import mediaRoutes from './routes/media.js';
 import webhookRoutes from './routes/webhooks.js';
 import { ensureSuperAdmin, ensureCrewPortal } from './services/bootstrap.js';
+import { seedBadges } from './services/badges.js';
 import { attachCommunitySocket } from './services/community.js';
 import { MailDeliveryError } from './services/mail.js';
 import { runMigrations } from './migrate.js';
@@ -74,6 +75,7 @@ const server = http.createServer(app);
 attachCommunitySocket(server);
 
 runMigrations()
+  .then(() => seedBadges())
   .then(() => ensureSuperAdmin())
   .then(() => ensureCrewPortal())
   .then(() => {

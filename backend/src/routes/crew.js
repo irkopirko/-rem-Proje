@@ -5,6 +5,7 @@ import { query } from '../db.js';
 import { requireAuth, requireCrew } from '../middleware/auth.js';
 import { hashPassword } from '../utils/crypto.js';
 import { auditLog } from '../services/audit.js';
+import { quietEvaluate } from '../services/badges.js';
 import {
   MAX_IMAGE_BYTES,
   attachImages,
@@ -137,7 +138,8 @@ router.delete('/homework/images/:imageId', async (req, res) => {
 
 router.get('/homework/pending-review', async (_req, res) => {
   const rows = await query(
-    `SELECT ha.id AS assignmentId, h.title, u.first_name AS firstName, u.last_name AS lastName, ha.status
+    `SELECT ha.id AS assignmentId, h.title, u.first_name AS firstName, u.last_name AS lastName, ha.status,
+            (SELECT file_url FROM homework_submissions hs WHERE hs.assignment_id = ha.id ORDER BY submitted_at DESC LIMIT 1) AS fileUrl
      FROM homework_assignments ha
      JOIN homework h ON h.id = ha.homework_id
      JOIN users u ON u.id = ha.student_id
@@ -156,7 +158,7 @@ router.post('/homework/:assignmentId/grade', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
 
-  const assignmentRows = await query(`SELECT status FROM homework_assignments WHERE id = ?`, [
+  const assignmentRows = await query(`SELECT status, student_id AS studentId FROM homework_assignments WHERE id = ?`, [
     req.params.assignmentId,
   ]);
   if (!assignmentRows.length) return res.status(404).json({ error: 'Not found' });
@@ -183,6 +185,7 @@ router.post('/homework/:assignmentId/grade', async (req, res) => {
     newStatus,
     req.params.assignmentId,
   ]);
+  quietEvaluate(assignmentRows[0].studentId);
   return res.json({ ok: true, status: newStatus });
 });
 

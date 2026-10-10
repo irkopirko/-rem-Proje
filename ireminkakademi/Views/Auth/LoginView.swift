@@ -47,7 +47,7 @@ struct LoginView: View {
 
             Text("Hesabın yok mu?")
                 .font(.system(size: 13))
-                .foregroundStyle(InkMockup.captionColor)
+                .foregroundStyle(InkAuth.captionColor)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 10)
 
@@ -60,7 +60,7 @@ struct LoginView: View {
             }
             .font(.system(size: 13))
             .underline()
-            .foregroundStyle(InkMockup.captionColor)
+            .foregroundStyle(InkAuth.captionColor)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 36)
         }

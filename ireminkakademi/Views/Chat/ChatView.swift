@@ -182,7 +182,7 @@ struct CommunityRoomView: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isMe { Spacer(minLength: 48) }
             if !isMe {
-                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32)
+                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32, frame: message.avatarFrame)
                     .padding(.bottom, 16)
             }
             VStack(alignment: isMe ? .trailing : .leading, spacing: 3) {
@@ -202,7 +202,7 @@ struct CommunityRoomView: View {
                     .font(.system(size: 15))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(isMe ? Color.black : InkMockup.cardFill.opacity(message.isStaff ? 1 : 0.95))
+                    .background(isMe ? InkMockup.accentPink : InkMockup.cardFill.opacity(message.isStaff ? 1 : 0.95))
                     .foregroundStyle(isMe ? .white : InkMockup.textPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {

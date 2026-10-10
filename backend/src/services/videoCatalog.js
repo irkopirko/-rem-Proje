@@ -12,6 +12,7 @@ export function videoDTO(row, progress) {
     durationSeconds: row.duration_seconds ?? 0,
     status: row.status,
     isPublished: Boolean(row.is_published),
+    allowTrial: Boolean(row.allow_trial),
     width: row.width,
     height: row.height,
     thumbnailUrl: row.bunny_video_id && row.status === 'ready' ? streamThumbnailUrl(row.bunny_video_id) : null,

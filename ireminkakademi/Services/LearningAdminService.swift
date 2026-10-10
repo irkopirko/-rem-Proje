@@ -10,7 +10,12 @@ struct LearningAdminService {
     private struct Credentials: Decodable { let upload: VideoUploadCredentials }
 
     private struct ModuleBody: Encodable { let title: String; let description: String; let isPublished: Bool }
-    private struct VideoBody: Encodable { let title: String; let description: String; let isPublished: Bool }
+    private struct VideoBody: Encodable {
+        let title: String
+        let description: String
+        let isPublished: Bool
+        let allowTrial: Bool
+    }
 
     func fetchModules() async throws -> CrewModulesResponse {
         try await api.request("/v1/crew/modules", authorized: true)
@@ -49,7 +54,7 @@ struct LearningAdminService {
         let resp: CreatedVideo = try await api.request(
             "/v1/crew/modules/\(moduleId)/videos",
             method: "POST",
-            body: VideoBody(title: draft.title, description: draft.description, isPublished: draft.isPublished),
+            body: VideoBody(title: draft.title, description: draft.description, isPublished: draft.isPublished, allowTrial: draft.allowTrial),
             authorized: true
         )
         return (resp.video, resp.upload)
@@ -73,7 +78,7 @@ struct LearningAdminService {
         let _: OK = try await api.request(
             "/v1/crew/videos/\(id)",
             method: "PATCH",
-            body: VideoBody(title: draft.title, description: draft.description, isPublished: draft.isPublished),
+            body: VideoBody(title: draft.title, description: draft.description, isPublished: draft.isPublished, allowTrial: draft.allowTrial),
             authorized: true
         )
     }

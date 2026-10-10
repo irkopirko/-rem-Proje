@@ -1,4 +1,7 @@
+import PhotosUI
 import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
 
 struct AssignmentsListView: View {
     let container: DIContainer
@@ -17,20 +20,37 @@ struct AssignmentsListView: View {
         items.filter { $0.status == "graded_pass" }
     }
 
+    private var canSeeHomework: Bool { container.sessionUser?.canSeeHomework == true }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     InkMockSectionTitle(text: "Ödevler")
 
-                    sectionHeader("Tamamlanmamış Ödevler")
-                    homeworkSection(incomplete)
+                    if canSeeHomework {
+                        sectionHeader("Tamamlanmamış Ödevler")
+                        homeworkSection(incomplete)
 
-                    sectionHeader("Değerlendirilmeyi Bekleyen Ödevler")
-                    homeworkSection(awaitingReview, showStatus: true)
+                        sectionHeader("Değerlendirilmeyi Bekleyen Ödevler")
+                        homeworkSection(awaitingReview, showStatus: true)
 
-                    sectionHeader("Tamamlanmış Ödevler")
-                    homeworkSection(completed, showStatus: true)
+                        sectionHeader("Tamamlanmış Ödevler")
+                        homeworkSection(completed, showStatus: true)
+                    } else {
+                        InkMockCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Ödevler abonelere açık")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(InkMockup.textPrimary)
+                                Text("Deneme sürümünde ödevler görünmez. Light, Plus veya Life Plus üyeliğin olduğunda buradan teslim edebilirsin.")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(InkMockup.captionColor)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                        }
+                    }
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
@@ -38,7 +58,10 @@ struct AssignmentsListView: View {
             }
             .studentScreenBackground()
             .navigationBarHidden(true)
-            .task { items = (try? await catalog.fetchHomework()) ?? [] }
+            .task {
+                guard canSeeHomework else { items = []; return }
+                items = (try? await catalog.fetchHomework()) ?? []
+            }
         }
     }
 
@@ -57,7 +80,9 @@ struct AssignmentsListView: View {
             VStack(spacing: 10) {
                 ForEach(list) { item in
                     NavigationLink {
-                        HomeworkDetailView(item: item)
+                        HomeworkDetailView(item: item, catalog: catalog) {
+                            items = (try? await catalog.fetchHomework()) ?? items
+                        }
                     } label: {
                         InkMockHomeworkPill(
                             title: item.title,
@@ -82,6 +107,21 @@ struct AssignmentsListView: View {
 
 struct HomeworkDetailView: View {
     let item: HomeworkAssignmentDTO
+    let catalog: CatalogService
+    var onSubmitted: (() async -> Void)? = nil
+
+    @State private var picked: HomeworkPickedFile?
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var showFileImporter = false
+    @State private var showSourcePicker = false
+    @State private var showPhotosPicker = false
+    @State private var isUploading = false
+    @State private var errorMessage: String?
+    @State private var submitted = false
+
+    private var canUpload: Bool {
+        item.status == "pending" || item.status == "graded_revise"
+    }
 
     var body: some View {
         ScrollView {
@@ -107,7 +147,7 @@ struct HomeworkDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if item.status == "submitted" || item.status == "grading" {
+                if submitted || item.status == "submitted" || item.status == "grading" {
                     Text("Ödeviniz gönderildi. Değerlendiriyoruz.")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.inkWarning)
@@ -118,18 +158,46 @@ struct HomeworkDetailView: View {
                         .font(.headline)
                 }
 
-                if item.status == "pending" || item.status == "graded_revise" {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [8]))
-                        .foregroundStyle(InkMockup.captionColor.opacity(0.5))
-                        .frame(height: 140)
-                        .overlay(
-                            Text("dosya yükleme kısmı")
+                if canUpload && !submitted {
+                    Button { showSourcePicker = true } label: {
+                        VStack(spacing: 8) {
+                            Text("Dosya")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(InkMockup.textPrimary)
+                            Text(picked?.name ?? "PNG, JPEG, JPG, PDF")
                                 .font(.system(size: 13))
                                 .foregroundStyle(InkMockup.captionColor)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 140)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [8]))
+                                .foregroundStyle(InkMockup.captionColor.opacity(0.5))
                         )
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog("Dosya seç", isPresented: $showSourcePicker, titleVisibility: .hidden) {
+                        Button("Fotoğraf") { showPhotosPicker = true }
+                        Button("Dosyalar") { showFileImporter = true }
+                        Button("Vazgeç", role: .cancel) {}
+                    }
 
-                    InkMockPrimaryButton(title: "Yükle") {}
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.inkError)
+                    }
+
+                    InkMockPrimaryButton(title: picked == nil ? "Dosya seç" : "Yükle", isLoading: isUploading) {
+                        if picked == nil {
+                            showSourcePicker = true
+                        } else {
+                            Task { await upload() }
+                        }
+                    }
+                    .disabled(isUploading)
                 }
             }
             .padding(.horizontal, InkMockup.screenHorizontal)
@@ -137,5 +205,100 @@ struct HomeworkDetailView: View {
         }
         .studentScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
+        .photosPicker(isPresented: $showPhotosPicker, selection: $pickerItem, matching: .images)
+        .fileImporter(isPresented: $showFileImporter, allowedContentTypes: HomeworkPickedFile.allowedTypes) { result in
+            switch result {
+            case .success(let url):
+                do { picked = try HomeworkPickedFile.load(from: url) }
+                catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Dosya okunamadı." }
+            case .failure:
+                errorMessage = "Dosya seçilemedi."
+            }
+        }
+        .onChange(of: pickerItem) { _, item in
+            guard let item else { return }
+            Task {
+                do { picked = try await HomeworkPickedFile.load(from: item) }
+                catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Fotoğraf okunamadı." }
+                pickerItem = nil
+            }
+        }
+    }
+
+    private func upload() async {
+        guard let picked else { return }
+        isUploading = true
+        errorMessage = nil
+        defer { isUploading = false }
+        do {
+            try await catalog.submitHomework(assignmentId: item.assignmentId, data: picked.data, contentType: picked.contentType)
+            submitted = true
+            await onSubmitted?()
+        } catch {
+            errorMessage = AuthErrorMessage.from(error)
+        }
+    }
+}
+
+private struct HomeworkPickedFile {
+    static let allowedTypes: [UTType] = [.png, .jpeg, .pdf]
+    static let maxBytes = 10 * 1024 * 1024
+
+    let name: String
+    let data: Data
+    let contentType: String
+
+    enum FileError: LocalizedError {
+        case unsupported
+        case tooLarge
+        case unreadable
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupported: return "Sadece PNG, JPEG, JPG veya PDF yükleyebilirsin."
+            case .tooLarge: return "Dosya en fazla 10 MB olabilir."
+            case .unreadable: return "Dosya okunamadı."
+            }
+        }
+    }
+
+    static func load(from url: URL) throws -> Self {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        return try make(name: url.lastPathComponent, data: data, type: UTType(filenameExtension: url.pathExtension))
+    }
+
+    static func load(from item: PhotosPickerItem) async throws -> Self {
+        guard let data = try await item.loadTransferable(type: Data.self) else { throw FileError.unreadable }
+        if let jpeg = HomeworkPickedFile.normalizedImage(data) {
+            return try make(name: "odev.jpg", data: jpeg, type: .jpeg)
+        }
+        throw FileError.unsupported
+    }
+
+    private static func make(name: String, data: Data, type: UTType?) throws -> Self {
+        guard data.count <= maxBytes else { throw FileError.tooLarge }
+        if type?.conforms(to: .pdf) == true || data.starts(with: [0x25, 0x50, 0x44, 0x46]) {
+            return Self(name: name, data: data, contentType: "application/pdf")
+        }
+        if type?.conforms(to: .png) == true || data.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
+            return Self(name: name, data: data, contentType: "image/png")
+        }
+        if type?.conforms(to: .jpeg) == true || (data.count > 2 && data[0] == 0xFF && data[1] == 0xD8) {
+            return Self(name: name, data: data, contentType: "image/jpeg")
+        }
+        if let jpeg = normalizedImage(data) {
+            return Self(name: name, data: jpeg, contentType: "image/jpeg")
+        }
+        throw FileError.unsupported
+    }
+
+    private static func normalizedImage(_ data: Data) -> Data? {
+        #if canImport(UIKit)
+        return UIImage(data: data)?.jpegData(compressionQuality: 0.85)
+        #else
+        return nil
+        #endif
     }
 }

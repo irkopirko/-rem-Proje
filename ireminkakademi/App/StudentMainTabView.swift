@@ -25,5 +25,7 @@ struct StudentMainTabView: View {
             InkStudentTabBar(selection: $tab)
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .environment(\.inkStudioChrome, true)
+        .preferredColorScheme(.dark)
     }
 }

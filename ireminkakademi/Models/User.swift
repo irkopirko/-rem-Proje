@@ -16,6 +16,13 @@ enum MembershipStatus: String, Codable, Sendable {
 }
 
 extension MembershipStatus {
+    var isPaid: Bool {
+        switch self {
+        case .plus, .light, .lifePlus: return true
+        default: return false
+        }
+    }
+
     var displayName: String {
         switch self {
         case .trial: return "Deneme Üyeliği"
@@ -39,6 +46,11 @@ struct User: Codable, Sendable, Identifiable {
     let role: UserRole
     let membershipStatus: MembershipStatus
     let profilePhotoUrl: String?
+    var xp: Int? = nil
+    var totalXp: Int? = nil
+    var level: Int? = nil
+    var xpIntoLevel: Int? = nil
+    var xpForNextLevel: Int? = nil
 
     var displayName: String { "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces) }
 
@@ -49,6 +61,12 @@ struct User: Codable, Sendable, Identifiable {
     }
 
     var profilePhotoURL: URL? { MediaURL.resolve(profilePhotoUrl) }
+
+    var canSeeHomework: Bool { role == .crew || role == .superAdmin || membershipStatus.isPaid }
+
+    var avatarFrame: AvatarFrame { .of(role: role, membership: membershipStatus, username: username) }
+
+    var levelProgress: LevelProgress { LevelMath.from(xp: totalXp ?? xp ?? 0) }
 
     /// "yyyy-MM-dd" → "12 Mart 1998"
     var formattedBirthDate: String? {
@@ -72,6 +90,20 @@ enum MediaURL {
             return URL(string: value)
         }
         return URL(string: value, relativeTo: APIConfiguration.baseURL)?.absoluteURL
+    }
+}
+
+enum AvatarFrame: String, Codable, Sendable {
+    case gray
+    case gold
+    case purple
+
+    private static let purpleUsernames: Set<String> = ["inkakademicrew", "vuralemekci", "iremcelik"]
+
+    static func of(role: UserRole, membership: MembershipStatus, username: String? = nil) -> AvatarFrame {
+        if role == .crew { return .purple }
+        if let username, purpleUsernames.contains(UsernameRules.normalize(username)) { return .purple }
+        return membership.isPaid ? .gold : .gray
     }
 }
 

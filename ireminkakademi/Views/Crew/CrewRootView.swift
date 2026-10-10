@@ -144,5 +144,6 @@ struct CrewHomeworkItem: Identifiable, Decodable {
     let firstName: String
     let lastName: String
     let status: String
+    var fileUrl: String? = nil
     var id: String { assignmentId }
 }

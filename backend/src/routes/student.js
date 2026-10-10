@@ -1,30 +1,39 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
 import { requireAuth, requireStudent } from '../middleware/auth.js';
 import { attachImages } from '../services/contentImages.js';
 import { isStreamConfigured, streamPlaybackUrl } from '../services/bunny.js';
 import { videoDTO } from '../services/videoCatalog.js';
+import { canSeeHomework, canWatchVideo, studentVideoAccessSql } from '../services/membership.js';
+import { MAX_HOMEWORK_FILE_BYTES, storeHomeworkSubmission } from '../services/homeworkSubmissions.js';
+import {
+  evaluateBadges,
+  grantXp,
+  progressFor,
+  quietEvaluate,
+  recordVideoDay,
+  recordWeeklyGameWin,
+  XP_PER_HOMEWORK_SUBMIT,
+  XP_PER_VIDEO,
+} from '../services/badges.js';
 
 const router = Router();
 router.use(requireAuth);
 
 const PLAYABLE = `v.is_published = 1 AND v.status = 'ready'`;
-const BLOCKED_MEMBERSHIPS = new Set(['trial_expired', 'none']);
 
-function canWatch(user) {
-  if (user.role === 'crew' || user.role === 'super_admin') return true;
-  return !BLOCKED_MEMBERSHIPS.has(user.membership_status);
+function visibleVideos(user) {
+  return `${PLAYABLE} AND ${studentVideoAccessSql(user, 'v')}`;
 }
 
 /** Lightweight catalogue: module list + counts; videos are loaded per module on demand. */
 router.get('/modules', async (req, res) => {
   const rows = await query(
     `SELECT m.id, m.module_number, m.title, m.description, m.sort_order,
-            (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id AND ${PLAYABLE}) AS video_count,
+            (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id AND ${visibleVideos(req.user)}) AS video_count,
             (SELECT COUNT(*) FROM videos v JOIN video_progress vp ON vp.video_id = v.id
-               WHERE v.module_id = m.id AND ${PLAYABLE} AND vp.user_id = ? AND vp.completed = 1) AS completed_count
+               WHERE v.module_id = m.id AND ${visibleVideos(req.user)} AND vp.user_id = ? AND vp.completed = 1) AS completed_count
      FROM modules m WHERE m.is_published = 1 ORDER BY m.sort_order, m.module_number`,
     [req.user.id]
   );
@@ -43,7 +52,7 @@ router.get('/modules', async (req, res) => {
     `SELECT v.* FROM videos v
      JOIN modules m ON m.id = v.module_id AND m.is_published = 1
      LEFT JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ?
-     WHERE ${PLAYABLE} AND (vp.completed IS NULL OR vp.completed = 0)
+     WHERE ${visibleVideos(req.user)} AND (vp.completed IS NULL OR vp.completed = 0)
      ORDER BY m.sort_order, m.module_number, v.sort_order, v.video_number LIMIT 1`,
     [req.user.id]
   );
@@ -63,7 +72,7 @@ router.get('/modules/:id/videos', async (req, res) => {
      FROM videos v
      JOIN modules m ON m.id = v.module_id AND m.is_published = 1
      LEFT JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ?
-     WHERE v.module_id = ? AND ${PLAYABLE}
+     WHERE v.module_id = ? AND ${visibleVideos(req.user)}
      ORDER BY v.sort_order, v.video_number`,
     [req.user.id, req.params.id]
   );
@@ -72,7 +81,6 @@ router.get('/modules/:id/videos', async (req, res) => {
 
 /** Short-lived signed HLS URL; the CDN rejects the stream once it expires. */
 router.get('/videos/:id/playback', async (req, res) => {
-  if (!canWatch(req.user)) return res.status(402).json({ error: 'Membership required' });
   if (!isStreamConfigured()) return res.status(503).json({ error: 'Video service not configured' });
 
   const [row] = await query(
@@ -85,6 +93,7 @@ router.get('/videos/:id/playback', async (req, res) => {
   if (!row || !row.bunny_video_id || row.status !== 'ready' || (!row.is_published && !isStaff)) {
     return res.status(404).json({ error: 'Not found' });
   }
+  if (!canWatchVideo(req.user, row)) return res.status(402).json({ error: 'Membership required' });
   const playback = streamPlaybackUrl(row.bunny_video_id);
   return res.json({
     video: videoDTO(row, row),
@@ -102,6 +111,12 @@ router.post('/videos/:id/progress', requireStudent, async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
 
+  const [prev] = await query(`SELECT completed FROM video_progress WHERE user_id = ? AND video_id = ?`, [
+    req.user.id,
+    req.params.id,
+  ]);
+  const newlyCompleted = Boolean(parsed.data.completed) && !prev?.completed;
+
   await query(
     `INSERT INTO video_progress (user_id, video_id, watched_seconds, last_position_seconds, completed)
      VALUES (?, ?, ?, ?, ?)
@@ -117,6 +132,11 @@ router.post('/videos/:id/progress', requireStudent, async (req, res) => {
       parsed.data.completed ? 1 : 0,
     ]
   );
+  if (newlyCompleted) {
+    await recordVideoDay(req.user.id);
+    await grantXp(req.user.id, XP_PER_VIDEO);
+    quietEvaluate(req.user.id);
+  }
   return res.json({ ok: true });
 });
 
@@ -133,10 +153,12 @@ router.get('/products', async (req, res) => {
 });
 
 router.get('/homework', requireStudent, async (req, res) => {
+  if (!canSeeHomework(req.user)) return res.json({ assignments: [] });
   const rows = await query(
     `SELECT ha.id AS assignmentId, h.id AS homeworkId, h.title, h.explanation, h.due_at AS dueAt, ha.status,
             (SELECT score FROM homework_grades hg WHERE hg.assignment_id = ha.id AND hg.is_revision_grade = 0 ORDER BY graded_at DESC LIMIT 1) AS primaryScore,
-            (SELECT score FROM homework_grades hg WHERE hg.assignment_id = ha.id ORDER BY graded_at DESC LIMIT 1) AS latestScore
+            (SELECT score FROM homework_grades hg WHERE hg.assignment_id = ha.id ORDER BY graded_at DESC LIMIT 1) AS latestScore,
+            (SELECT file_url FROM homework_submissions hs WHERE hs.assignment_id = ha.id ORDER BY submitted_at DESC LIMIT 1) AS fileUrl
      FROM homework_assignments ha
      JOIN homework h ON h.id = ha.homework_id
      WHERE ha.student_id = ? AND h.is_published = 1
@@ -146,13 +168,11 @@ router.get('/homework', requireStudent, async (req, res) => {
   return res.json({ assignments: await attachImages('homework', rows, 'homeworkId') });
 });
 
-router.post('/homework/:assignmentId/submit', requireStudent, async (req, res) => {
-  const schema = z.object({
-    fileUrl: z.string().url(),
-    fileMime: z.enum(['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']),
-  });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid file' });
+const rawHomeworkFile = express.raw({ type: () => true, limit: MAX_HOMEWORK_FILE_BYTES });
+
+router.post('/homework/:assignmentId/submit', requireStudent, rawHomeworkFile, async (req, res) => {
+  if (!canSeeHomework(req.user)) return res.status(402).json({ error: 'Membership required' });
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Invalid file' });
 
   const rows = await query(
     `SELECT id, status FROM homework_assignments WHERE id = ? AND student_id = ?`,
@@ -163,23 +183,25 @@ router.post('/homework/:assignmentId/submit', requireStudent, async (req, res) =
     return res.status(400).json({ error: 'Assignment already passed' });
   }
 
-  await query(
-    `INSERT INTO homework_submissions (id, assignment_id, file_url, file_mime) VALUES (?, ?, ?, ?)`,
-    [uuidv4(), req.params.assignmentId, parsed.data.fileUrl, parsed.data.fileMime]
-  );
+  const stored = await storeHomeworkSubmission(req.params.assignmentId, req.body);
+  if (stored.status !== 200) return res.status(stored.status).json(stored.body);
+
   await query(`UPDATE homework_assignments SET status = 'submitted' WHERE id = ?`, [
     req.params.assignmentId,
   ]);
-  return res.json({ ok: true });
+  await grantXp(req.user.id, XP_PER_HOMEWORK_SUBMIT);
+  quietEvaluate(req.user.id);
+  return res.json({ ok: true, fileUrl: stored.url });
 });
 
 router.get('/badges', requireStudent, async (req, res) => {
-  const all = await query(`SELECT id, slug, title, image_url AS imageUrl FROM badges ORDER BY sort_order`);
-  const earned = await query(
-    `SELECT badge_id AS badgeId, earned_at AS earnedAt FROM user_badges WHERE user_id = ?`,
-    [req.user.id]
-  );
-  return res.json({ badges: all, earned });
+  return res.json(await progressFor(req.user.id));
+});
+
+router.post('/game/weekly-complete', requireStudent, async (req, res) => {
+  await recordWeeklyGameWin(req.user.id);
+  await evaluateBadges(req.user.id);
+  return res.json(await progressFor(req.user.id));
 });
 
 router.get('/guide', async (_req, res) => {

@@ -7,6 +7,8 @@ enum AuthErrorMessage {
         }
         if let api = error as? InkAPIError {
             switch api {
+            case .paymentRequired:
+                return "Bu içerik için güncel bir abonelik gerekiyor."
             case .server(let message) where message.localizedCaseInsensitiveContains("already registered"):
                 return "Bu e-posta ile zaten bir hesap var."
             case .server(let message) where message.localizedCaseInsensitiveContains("username taken"):
@@ -17,6 +19,12 @@ enum AuthErrorMessage {
                 return "Onay e-postası şu an gönderilemedi. Birkaç dakika sonra tekrar dene."
             case .server(let message) where message.localizedCaseInsensitiveContains("invalid input"):
                 return "Bilgilerini kontrol edip tekrar dene."
+            case .server(let message) where message.localizedCaseInsensitiveContains("only jpeg, png or pdf"):
+                return "Sadece PNG, JPEG, JPG veya PDF yükleyebilirsin."
+            case .server(let message) where message.localizedCaseInsensitiveContains("invalid file"):
+                return "Sadece PNG, JPEG, JPG veya PDF yükleyebilirsin."
+            case .server(let message) where message.localizedCaseInsensitiveContains("payload too large"):
+                return "Dosya en fazla 10 MB olabilir."
             default:
                 return api.errorDescription ?? "Bir hata oluştu."
             }

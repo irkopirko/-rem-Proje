@@ -7,10 +7,12 @@ struct CommunityMessage: Identifiable, Decodable, Equatable {
     let displayName: String
     let role: String
     var photoUrl: String?
+    var frame: String? = nil
     let body: String
     let createdAt: String
 
     var isStaff: Bool { role == "crew" || role == "super_admin" }
+    var avatarFrame: AvatarFrame { frame.flatMap(AvatarFrame.init(rawValue:)) ?? (isStaff ? .purple : .gray) }
     var photoURL: URL? { MediaURL.resolve(photoUrl) }
     var initials: String {
         String(displayName.drop { $0 == "@" }.prefix(1)).uppercased(with: Locale(identifier: "tr_TR"))

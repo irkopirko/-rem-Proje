@@ -1,38 +1,38 @@
 import { WebSocketServer } from 'ws';
 import { query } from '../db.js';
 import { verifyAccessToken } from '../utils/jwt.js';
+import { avatarFrame, isBlockedMembership, isStaff } from './membership.js';
+import { quietEvaluate } from './badges.js';
 
 export const MAX_MESSAGE_LENGTH = 2000;
 const AUTH_TIMEOUT_MS = 10_000;
 const HEARTBEAT_MS = 30_000;
 const RATE_WINDOW_MS = 10_000;
 const RATE_MAX_MESSAGES = 8;
-const BLOCKED_MEMBERSHIPS = new Set(['trial_expired', 'none']);
-
 /** userId → Set<WebSocket>. Single-instance hub; add Redis pub/sub before scaling to >1 replica. */
 const sockets = new Map();
 
 export function canJoin(user) {
   if (!user || user.deleted_at) return false;
-  if (user.role === 'crew' || user.role === 'super_admin') return true;
-  return !BLOCKED_MEMBERSHIPS.has(user.membership_status);
+  return !isBlockedMembership(user);
 }
 
 export function messageDTO(row) {
-  const isStaff = row.role === 'crew' || row.role === 'super_admin';
+  const staff = isStaff(row);
   return {
     id: String(row.id),
     userId: row.user_id,
     username: row.username ?? null,
-    displayName: isStaff ? 'Ink Akademi Crew' : row.username ? `@${row.username}` : row.first_name,
+    displayName: staff ? 'Ink Akademi Crew' : row.username ? `@${row.username}` : row.first_name,
     role: row.role,
     photoUrl: row.profile_photo_url ?? null,
+    frame: avatarFrame(row),
     body: row.body,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
 
-const MESSAGE_SELECT = `SELECT cm.id, cm.user_id, cm.body, cm.created_at, u.username, u.first_name, u.role, u.profile_photo_url
+const MESSAGE_SELECT = `SELECT cm.id, cm.user_id, cm.body, cm.created_at, u.username, u.first_name, u.role, u.membership_status, u.profile_photo_url
   FROM community_messages cm JOIN users u ON u.id = cm.user_id`;
 
 export async function loadMessage(id) {
@@ -124,6 +124,7 @@ async function handleSend(ws, payload) {
   const result = await query(`INSERT INTO community_messages (user_id, body) VALUES (?, ?)`, [user.id, body]);
   const message = await loadMessage(result.insertId);
   broadcast({ type: 'message', message, clientMessageId });
+  quietEvaluate(user.id);
 }
 
 export function attachCommunitySocket(server) {

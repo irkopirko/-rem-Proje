@@ -6,6 +6,7 @@ struct ProfileAvatarView: View {
     let url: URL?
     let initials: String
     var size: CGFloat = 56
+    var frame: AvatarFrame = .gray
 
     var body: some View {
         Circle()
@@ -25,7 +26,39 @@ struct ProfileAvatarView: View {
                 }
             }
             .clipShape(Circle())
+            .overlay(Circle().strokeBorder(frameStroke, lineWidth: max(2, size * 0.055)))
             .accessibilityHidden(true)
+    }
+
+    private var frameStroke: some ShapeStyle {
+        switch frame {
+        case .gold:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.98, green: 0.86, blue: 0.42),
+                        Color(red: 0.78, green: 0.56, blue: 0.12),
+                        Color(red: 0.93, green: 0.75, blue: 0.28),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        case .purple:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.72, green: 0.42, blue: 0.92),
+                        Color(red: 0.42, green: 0.16, blue: 0.68),
+                        Color(red: 0.58, green: 0.28, blue: 0.82),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        case .gray:
+            return AnyShapeStyle(Color(white: 0.62))
+        }
     }
 
     @ViewBuilder
@@ -76,7 +109,7 @@ struct EditableProfileAvatar: View {
 
     var body: some View {
         Button { showOptions = true } label: {
-            ProfileAvatarView(url: user?.profilePhotoURL, initials: user?.initials ?? "", size: size)
+            ProfileAvatarView(url: user?.profilePhotoURL, initials: user?.initials ?? "", size: size, frame: user?.avatarFrame ?? .gray)
                 .overlay {
                     if isWorking {
                         Circle().fill(.black.opacity(0.35))

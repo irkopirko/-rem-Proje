@@ -18,11 +18,11 @@ struct ForgotPasswordView: View {
 
             Text("Endişelenme.")
                 .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(InkMockup.textPrimary)
+                .foregroundStyle(InkAuth.textPrimary)
 
             Text("Hesabının kaydolduğu maili gir. Hesabını kurtarmana yardımcı olacağız.")
                 .font(.system(size: 15))
-                .foregroundStyle(InkMockup.captionColor)
+                .foregroundStyle(InkAuth.captionColor)
                 .fixedSize(horizontal: false, vertical: true)
 
             if step == 1 {
@@ -44,7 +44,7 @@ struct ForgotPasswordView: View {
             if let localCode = (authService as? LocalAuthService)?.lastIssuedCode, step == 2 {
                 Text("Geliştirme modu — sunucu bağlı değil. Kodun: \(localCode)")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
             }
 
             if let message {

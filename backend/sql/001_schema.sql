@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     'trial','trial_expired','plus','light','life_plus','none'
   ) NOT NULL DEFAULT 'trial',
   membership_expires_at DATETIME NULL,
+  xp INT UNSIGNED NOT NULL DEFAULT 0,
   profile_photo_url TEXT NULL,
   email_verified_at DATETIME NULL,
   chat_banned TINYINT(1) NOT NULL DEFAULT 0,
@@ -93,6 +94,7 @@ CREATE TABLE IF NOT EXISTS videos (
   uploaded_by_user_id CHAR(36) NULL,
   sort_order INT NOT NULL DEFAULT 0,
   is_published TINYINT(1) NOT NULL DEFAULT 1,
+  allow_trial TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_module_video (module_id, video_number),
@@ -119,6 +121,7 @@ CREATE TABLE IF NOT EXISTS badges (
   title VARCHAR(120) NOT NULL,
   image_url TEXT NULL,
   description TEXT NULL,
+  xp_reward INT UNSIGNED NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -129,6 +132,20 @@ CREATE TABLE IF NOT EXISTS user_badges (
   PRIMARY KEY (user_id, badge_id),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (badge_id) REFERENCES badges(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_activity_days (
+  user_id CHAR(36) NOT NULL,
+  activity_date DATE NOT NULL,
+  PRIMARY KEY (user_id, activity_date),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_game_weeks (
+  user_id CHAR(36) NOT NULL,
+  year_week INT NOT NULL,
+  PRIMARY KEY (user_id, year_week),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS live_sessions (
@@ -233,6 +250,8 @@ CREATE TABLE IF NOT EXISTS homework_submissions (
   assignment_id CHAR(36) NOT NULL,
   file_url TEXT NOT NULL,
   file_mime VARCHAR(64) NOT NULL,
+  data MEDIUMBLOB NULL,
+  storage_key VARCHAR(255) NULL,
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (assignment_id) REFERENCES homework_assignments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

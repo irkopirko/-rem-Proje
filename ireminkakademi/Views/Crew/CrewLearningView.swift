@@ -385,6 +385,7 @@ private struct CrewVideoRow: View {
                     if let q = video.qualityLabel { Text(q).fontWeight(.bold) }
                 }
                 if !video.isPublished { Text("· Taslak").foregroundStyle(.orange) }
+                Text(video.allowTrial ? "· Deneme açık" : "· Abonelere")
             }
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
@@ -437,6 +438,7 @@ struct CrewVideoEditorView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var isPublished = true
+    @State private var allowTrial = false
     @State private var pickerItem: PhotosPickerItem?
     @State private var showFileImporter = false
     @State private var stagedFile: URL?
@@ -485,6 +487,26 @@ struct CrewVideoEditorView: View {
                         .tint(.black)
                         .padding(14)
                         .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+
+                CrewEditorSection(
+                    title: "Kimler izleyebilir?",
+                    footer: "Light, Plus ve Life Plus üyeleri her zaman izler. Deneme sürümüne açık dersen deneme hesabı olan öğrenciler de bu videoyu görür."
+                ) {
+                    VStack(spacing: 0) {
+                        audienceRow(
+                            title: "Satın alma ve izinli üyeler",
+                            subtitle: "Light, Plus, Life Plus",
+                            selected: !allowTrial
+                        ) { allowTrial = false }
+                        Divider().padding(.leading, 14)
+                        audienceRow(
+                            title: "Deneme sürümü dahil",
+                            subtitle: "Deneme + satın alma",
+                            selected: allowTrial
+                        ) { allowTrial = true }
+                    }
+                    .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 if existing != nil {
@@ -584,6 +606,23 @@ struct CrewVideoEditorView: View {
         }
     }
 
+    private func audienceRow(title: String, subtitle: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(selected ? Color.black : Color.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary)
+                    Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(14)
+        }
+        .buttonStyle(.plain)
+    }
+
     private var canSave: Bool {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               description.count <= Self.descriptionLimit,
@@ -597,6 +636,7 @@ struct CrewVideoEditorView: View {
         title = existing?.title ?? ""
         description = existing?.description ?? ""
         isPublished = existing?.isPublished ?? true
+        allowTrial = existing?.allowTrial ?? false
     }
 
     private func importFromPhotos(_ item: PhotosPickerItem) async {
@@ -654,7 +694,8 @@ struct CrewVideoEditorView: View {
         let draft = VideoDraft(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-            isPublished: isPublished
+            isPublished: isPublished,
+            allowTrial: allowTrial
         )
         do {
             if let existing {

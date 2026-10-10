@@ -11,19 +11,35 @@ enum InkMockup {
     /// Öğrenci sekmelerinin (Eğitimler, Ödevler, Ürünler, Hesabım) ortak başlık yazısı.
     static let screenTitleFont = Font.system(size: 32, weight: .heavy)
 
-    /// Büyük puntolu metin — siyah.
+    /// Öğrenci (giriş sonrası) — koyu stüdyo.
+    static let textPrimary = Color(red: 0.96, green: 0.93, blue: 0.95)
+    static let captionColor = Color(red: 0.76, green: 0.68, blue: 0.72)
+    static let placeholderColor = Color(red: 0.55, green: 0.48, blue: 0.52)
+    static let fieldFill = Color(red: 0.14, green: 0.10, blue: 0.13)
+    static let fieldBorder = Color.white.opacity(0.10)
+    static let cardFill = Color(red: 0.13, green: 0.10, blue: 0.135)
+    /// Koyu pembe vurgu (referanstaki mor yerine).
+    static let accentPink = Color(red: 0.78, green: 0.22, blue: 0.44)
+}
+
+/// Giriş / kaydol / bize ulaş — açık mockup paleti, öğrenci temasına karışmaz.
+enum InkAuth {
     static let textPrimary = Color(red: 0.07, green: 0.07, blue: 0.07)
-    /// Küçük puntolu açıklamalar — siyaha yakın koyu gri.
     static let captionColor = Color(red: 0.20, green: 0.20, blue: 0.21)
-    /// Input içindeki “E-posta / İsim …” yazıları.
     static let placeholderColor = Color(red: 0.30, green: 0.30, blue: 0.31)
-    /// Input zemini — saf beyaz yerine açık gri.
     static let fieldFill = Color(red: 0.93, green: 0.93, blue: 0.94)
     static let fieldBorder = Color.black.opacity(0.18)
-    /// Öğrenci ekranı kartları — açık gri kutu.
-    static let cardFill = Color(red: 0.91, green: 0.90, blue: 0.89)
-    /// Vurgu (mockup’taki koyu pembe ton).
-    static let accentPink = Color(red: 0.55, green: 0.28, blue: 0.42)
+}
+
+private struct InkStudioChromeKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var inkStudioChrome: Bool {
+        get { self[InkStudioChromeKey.self] }
+        set { self[InkStudioChromeKey.self] = newValue }
+    }
 }
 
 struct InkMockSectionTitle: View {
@@ -42,10 +58,11 @@ struct InkMockSectionTitle: View {
 
 struct InkMockSubheading: View {
     let text: String
+    @Environment(\.inkStudioChrome) private var studio
     var body: some View {
         Text(text)
             .font(.system(size: 14, weight: .regular))
-            .foregroundStyle(InkMockup.captionColor)
+            .foregroundStyle(studio ? InkMockup.captionColor : InkAuth.captionColor)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -58,6 +75,7 @@ struct InkMockTextField: View {
     var textContentType: UITextContentType?
     var keyboardType: UIKeyboardType = .default
     var autocapitalization: TextInputAutocapitalization = .sentences
+    @Environment(\.inkStudioChrome) private var studio
 
     var body: some View {
         Group {
@@ -72,21 +90,21 @@ struct InkMockTextField: View {
         .textInputAutocapitalization(autocapitalization)
         .autocorrectionDisabled(isSecure || keyboardType == .emailAddress)
         .font(.system(size: 16))
-        .foregroundStyle(InkMockup.textPrimary)
-        .tint(InkMockup.textPrimary)
+        .foregroundStyle(studio ? InkMockup.textPrimary : InkAuth.textPrimary)
+        .tint(studio ? InkMockup.accentPink : InkAuth.textPrimary)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .frame(height: InkMockup.fieldHeight)
-        .background(invalid ? Color.inkError.opacity(0.10) : InkMockup.fieldFill)
+        .background(invalid ? Color.inkError.opacity(0.10) : (studio ? InkMockup.fieldFill : InkAuth.fieldFill))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(invalid ? Color.inkError : InkMockup.fieldBorder, lineWidth: invalid ? 1.5 : 1)
+                .stroke(invalid ? Color.inkError : (studio ? InkMockup.fieldBorder : InkAuth.fieldBorder), lineWidth: invalid ? 1.5 : 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var prompt: Text {
-        Text(placeholder).foregroundStyle(invalid ? Color.inkError : InkMockup.placeholderColor)
+        Text(placeholder).foregroundStyle(invalid ? Color.inkError : (studio ? InkMockup.placeholderColor : InkAuth.placeholderColor))
     }
 }
 
@@ -134,6 +152,7 @@ struct InkMockPrimaryButton: View {
     let title: String
     var isLoading = false
     var action: () -> Void
+    @Environment(\.inkStudioChrome) private var studio
 
     var body: some View {
         Button(action: action) {
@@ -147,7 +166,7 @@ struct InkMockPrimaryButton: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: InkMockup.buttonHeight)
-            .background(Color.black)
+            .background(studio ? InkMockup.accentPink : Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .disabled(isLoading)
@@ -158,18 +177,19 @@ struct InkMockPrimaryButton: View {
 struct InkMockSecondaryButton: View {
     let title: String
     var action: () -> Void
+    @Environment(\.inkStudioChrome) private var studio
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(InkMockup.textPrimary)
+                .foregroundStyle(studio ? InkMockup.textPrimary : InkAuth.textPrimary)
                 .frame(maxWidth: .infinity)
                 .frame(height: InkMockup.buttonHeight)
-                .background(Color.white.opacity(0.55))
+                .background(studio ? InkMockup.cardFill : Color.white.opacity(0.55))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.black, lineWidth: 1.5)
+                        .stroke(studio ? InkMockup.accentPink.opacity(0.7) : Color.black, lineWidth: 1.5)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }

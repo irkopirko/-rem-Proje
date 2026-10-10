@@ -30,16 +30,12 @@ extension Color {
     /// Light tertiary / metadata text
     static let inkTextTertiary  = Color(light: 0xADA598, dark: 0x6A6358)
 
-    // MARK: - Primary Accent (Dark Purple — brand CTA)
+    // MARK: - Primary Accent (koyu pembe)
 
-    /// Koyu mor — ana marka rengi
-    static let inkAccent        = Color(light: 0x4A2C6E, dark: 0x8B6BB1)
-    /// Soft accent tint for backgrounds
-    static let inkAccentSoft    = Color(light: 0xEDE8F4, dark: 0x2A2238)
-    /// Muted purple tint
-    static let inkAccentMuted   = Color(light: 0xD4C8E4, dark: 0x3A3048)
-    /// Deep accent for gradients
-    static let inkAccentDeep    = Color(light: 0x3A2258, dark: 0x6B4A96)
+    static let inkAccent        = Color(light: 0x8C2A4E, dark: 0xC73B6E)
+    static let inkAccentSoft    = Color(light: 0xF4E4EB, dark: 0x2A1520)
+    static let inkAccentMuted   = Color(light: 0xE4C4D0, dark: 0x3A1824)
+    static let inkAccentDeep    = Color(light: 0x6E1F3C, dark: 0x9A2D55)
 
     // MARK: - Page Gradient (soft gray)
 

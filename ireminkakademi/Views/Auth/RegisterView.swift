@@ -30,13 +30,13 @@ struct RegisterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("KAYIT OL")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(InkMockup.textPrimary)
+                    .foregroundStyle(InkAuth.textPrimary)
                 Text("Hayallerine birkaç adım.")
                     .font(.system(size: 15))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
                 Text("Şimdi kaydol.")
                     .font(.system(size: 15))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
             }
             .padding(.bottom, 4)
 
@@ -73,7 +73,7 @@ struct RegisterView: View {
                 InkMockTextField(placeholder: "Şifre", text: $password, isSecure: true, invalid: showError(passwordInvalid), textContentType: .newPassword)
                 Text("Şifre büyük ve küçük harf, rakam ve işaretlerden (+,-,*,!) oluşmalıdır. En az 8 karakter.")
                     .font(.system(size: 12))
-                    .foregroundStyle(showError(passwordInvalid) ? Color.inkError : InkMockup.captionColor)
+                    .foregroundStyle(showError(passwordInvalid) ? Color.inkError : InkAuth.captionColor)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -82,7 +82,7 @@ struct RegisterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Doğum tarihi")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
                 HStack(spacing: 10) {
                     InkMockMenuPicker(title: "Gün", selection: $day, options: Array(1...31), invalid: showError(day == nil))
                     InkMockMenuPicker(
@@ -106,7 +106,7 @@ struct RegisterView: View {
             }
             .font(.system(size: 13))
             .underline()
-            .foregroundStyle(InkMockup.captionColor)
+            .foregroundStyle(InkAuth.captionColor)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 12)
         }
@@ -144,7 +144,7 @@ struct RegisterView: View {
 
     private var usernameCaptionColor: Color {
         if usernameShowsError { return .inkError }
-        return usernameState == .available ? .inkSage : InkMockup.captionColor
+        return usernameState == .available ? .inkSage : InkAuth.captionColor
     }
 
     private func checkUsername() async {

@@ -72,6 +72,7 @@ struct VideoDTO: Identifiable, Decodable, Hashable {
     var height: Int? = nil
     var completed: Bool? = nil
     var lastPositionSeconds: Int? = nil
+    var allowTrial: Bool = false
 
     var numberLabel: String {
         videoNumber.rounded() == videoNumber ? String(format: "%.0f", videoNumber) : String(format: "%.1f", videoNumber)
@@ -136,6 +137,7 @@ struct VideoDraft: Equatable {
     var title: String
     var description: String
     var isPublished: Bool
+    var allowTrial: Bool
 }
 
 /// Bunny Stream TUS (devam ettirilebilir) yükleme kimlik bilgileri.
@@ -229,6 +231,7 @@ struct HomeworkAssignmentDTO: Identifiable, Decodable {
     let status: String
     let primaryScore: Int?
     let latestScore: Int?
+    var fileUrl: String? = nil
     var images: [ProductImageDTO]? = nil
 
     var gallery: [ProductImageDTO] { images ?? [] }

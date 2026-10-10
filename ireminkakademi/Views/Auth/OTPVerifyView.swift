@@ -24,7 +24,7 @@ struct OTPVerifyView: View {
 
             Text("Mail hesabına gönderdiğimiz kodu gir.")
                 .font(.system(size: 15))
-                .foregroundStyle(InkMockup.captionColor)
+                .foregroundStyle(InkAuth.captionColor)
 
             HStack(spacing: 8) {
                 ForEach(0..<6, id: \.self) { index in
@@ -33,13 +33,13 @@ struct OTPVerifyView: View {
                         .textContentType(.oneTimeCode)
                         .multilineTextAlignment(.center)
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(InkMockup.textPrimary)
+                        .foregroundStyle(InkAuth.textPrimary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(InkMockup.fieldFill)
+                        .background(InkAuth.fieldFill)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(InkMockup.fieldBorder, lineWidth: 1)
+                                .stroke(InkAuth.fieldBorder, lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .focused($focusIndex, equals: index)
@@ -55,7 +55,7 @@ struct OTPVerifyView: View {
             if let localCode = (authService as? LocalAuthService)?.lastIssuedCode {
                 Text("Geliştirme modu — sunucu bağlı değil. Onay kodun: \(localCode)")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
             }
 
             if let errorMessage {

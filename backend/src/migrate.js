@@ -52,6 +52,10 @@ export async function runMigrations() {
 
   await addColumnIfMissing(pool, 'users', 'username', 'VARCHAR(20) NULL UNIQUE AFTER user_no');
   await addColumnIfMissing(pool, 'homework', 'assign_to_all', 'TINYINT(1) NOT NULL DEFAULT 1 AFTER due_at');
+  await addColumnIfMissing(pool, 'users', 'xp', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER membership_expires_at');
+  await addColumnIfMissing(pool, 'badges', 'xp_reward', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER description');
+  await addColumnIfMissing(pool, 'homework_submissions', 'data', 'MEDIUMBLOB NULL AFTER file_mime');
+  await addColumnIfMissing(pool, 'homework_submissions', 'storage_key', 'VARCHAR(255) NULL AFTER data');
 
   for (const table of ['product_images', 'homework_images']) {
     await makeNullable(pool, table, 'data', 'MEDIUMBLOB');
@@ -69,6 +73,7 @@ export async function runMigrations() {
   await addColumnIfMissing(pool, 'videos', 'width', 'INT UNSIGNED NULL AFTER status');
   await addColumnIfMissing(pool, 'videos', 'height', 'INT UNSIGNED NULL AFTER width');
   await addColumnIfMissing(pool, 'videos', 'uploaded_by_user_id', 'CHAR(36) NULL AFTER height');
+  await addColumnIfMissing(pool, 'videos', 'allow_trial', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_published');
   await addIndexIfMissing(pool, 'videos', 'idx_videos_module_order', 'module_id, sort_order');
   await addIndexIfMissing(pool, 'videos', 'idx_videos_status', 'status');
   console.log('Migration complete.');

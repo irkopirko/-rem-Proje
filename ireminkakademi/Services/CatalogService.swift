@@ -48,6 +48,23 @@ final class CatalogService {
         let resp: HomeworkListResponse = try await api.request("/v1/homework", authorized: true)
         return resp.assignments
     }
+
+    func fetchBadgeProgress() async throws -> BadgeProgressResponse {
+        if APIConfiguration.usesMockBackend {
+            return BadgeProgressResponse(totalXp: 0, level: 0, xpIntoLevel: 0, xpForNextLevel: 100, badges: [])
+        }
+        return try await api.request("/v1/badges", authorized: true)
+    }
+
+    func completeWeeklyGame() async throws -> BadgeProgressResponse {
+        try await api.request("/v1/game/weekly-complete", method: "POST", authorized: true)
+    }
+
+    func submitHomework(assignmentId: String, data: Data, contentType: String) async throws {
+        guard !APIConfiguration.usesMockBackend else { return }
+        struct OK: Decodable { let ok: Bool }
+        let _: OK = try await api.upload("/v1/homework/\(assignmentId)/submit", data: data, contentType: contentType)
+    }
 }
 
 enum MockCatalog {

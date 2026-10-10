@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct ContactSupportView: View {
+    @Environment(\.inkStudioChrome) private var studio
     @State private var userEmail = ""
     @State private var message = ""
     @State private var mailError: String?
+
+    private var textPrimary: Color { studio ? InkMockup.textPrimary : InkAuth.textPrimary }
+    private var caption: Color { studio ? InkMockup.captionColor : InkAuth.captionColor }
+    private var placeholder: Color { studio ? InkMockup.placeholderColor : InkAuth.placeholderColor }
+    private var fieldFill: Color { studio ? InkMockup.fieldFill : InkAuth.fieldFill }
+    private var fieldBorder: Color { studio ? InkMockup.fieldBorder : InkAuth.fieldBorder }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -11,10 +18,10 @@ struct ContactSupportView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Selam!")
                         .font(.system(size: 26, weight: .bold))
-                        .foregroundStyle(InkMockup.textPrimary)
+                        .foregroundStyle(textPrimary)
                     Text("Sana yardımcı olabilmemiz için yaşadığın sorunu aşağı yazarak bize ulaş. <3")
                         .font(.system(size: 16))
-                        .foregroundStyle(InkMockup.captionColor)
+                        .foregroundStyle(caption)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 40)
@@ -27,18 +34,18 @@ struct ContactSupportView: View {
                     autocapitalization: .never
                 )
 
-                TextField(text: $message, prompt: Text("Açıklama").foregroundStyle(InkMockup.placeholderColor), axis: .vertical) {
+                TextField(text: $message, prompt: Text("Açıklama").foregroundStyle(placeholder), axis: .vertical) {
                     Text("Açıklama")
                 }
                 .lineLimit(6...12)
                 .font(.system(size: 16))
-                .foregroundStyle(InkMockup.textPrimary)
+                .foregroundStyle(textPrimary)
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(InkMockup.fieldFill)
+                .background(fieldFill)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(InkMockup.fieldBorder, lineWidth: 1)
+                        .stroke(fieldBorder, lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 

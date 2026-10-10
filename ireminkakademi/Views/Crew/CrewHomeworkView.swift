@@ -101,6 +101,10 @@ struct CrewHomeworkView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(item.title).font(.headline)
                         Text("\(item.firstName) \(item.lastName)").font(.caption).foregroundStyle(.secondary)
+                        if let url = MediaURL.resolve(item.fileUrl) {
+                            Link("Teslimi aç", destination: url)
+                                .font(.caption.weight(.semibold))
+                        }
                     }
                 }
             }

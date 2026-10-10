@@ -25,6 +25,7 @@ const videoSchema = z.object({
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10000).optional(),
   isPublished: z.boolean().optional(),
+  allowTrial: z.boolean().optional(),
 });
 
 function moduleDTO(row) {
@@ -116,8 +117,8 @@ router.post('/modules/:id/videos', async (req, res) => {
   const guid = await createStreamVideo(`${modules[0].title} — ${parsed.data.title}`);
   const id = uuidv4();
   await query(
-    `INSERT INTO videos (id, module_id, video_number, title, description, bunny_video_id, status, sort_order, is_published, uploaded_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'awaiting_upload', ?, ?, ?)`,
+    `INSERT INTO videos (id, module_id, video_number, title, description, bunny_video_id, status, sort_order, is_published, allow_trial, uploaded_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, 'awaiting_upload', ?, ?, ?, ?)`,
     [
       id,
       req.params.id,
@@ -127,6 +128,7 @@ router.post('/modules/:id/videos', async (req, res) => {
       guid,
       Number(next),
       parsed.data.isPublished === false ? 0 : 1,
+      parsed.data.allowTrial ? 1 : 0,
       req.user.id,
     ]
   );
@@ -160,11 +162,17 @@ router.get('/videos/:id', async (req, res) => {
 router.patch('/videos/:id', async (req, res) => {
   const parsed = videoSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { title, description, isPublished } = parsed.data;
+  const { title, description, isPublished, allowTrial } = parsed.data;
   const result = await query(
     `UPDATE videos SET title = COALESCE(?, title), description = COALESCE(?, description),
-       is_published = COALESCE(?, is_published) WHERE id = ?`,
-    [title ?? null, description ?? null, isPublished === undefined ? null : isPublished ? 1 : 0, req.params.id]
+       is_published = COALESCE(?, is_published), allow_trial = COALESCE(?, allow_trial) WHERE id = ?`,
+    [
+      title ?? null,
+      description ?? null,
+      isPublished === undefined ? null : isPublished ? 1 : 0,
+      allowTrial === undefined ? null : allowTrial ? 1 : 0,
+      req.params.id,
+    ]
   );
   if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
   await auditLog({ actorUserId: req.user.id, action: 'video.update', targetType: 'video', targetId: req.params.id, ip: req.ip });

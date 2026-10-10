@@ -10,7 +10,7 @@ struct WelcomeView: View {
             HStack(spacing: 8) {
                 Text("Powered by")
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(InkMockup.captionColor)
+                    .foregroundStyle(InkAuth.captionColor)
                 Image("remi-logo")
                     .resizable()
                     .scaledToFit()
@@ -29,7 +29,7 @@ struct WelcomeView: View {
                 Text("Şimdi başla.")
             }
             .font(.system(size: 19))
-            .foregroundStyle(InkMockup.captionColor)
+            .foregroundStyle(InkAuth.captionColor)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 49)
 

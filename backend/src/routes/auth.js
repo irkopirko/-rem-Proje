@@ -18,6 +18,9 @@ import {
 } from '../services/mail.js';
 import { requireAuth } from '../middleware/auth.js';
 import { auditLog } from '../services/audit.js';
+import { avatarFrame } from '../services/membership.js';
+import { evaluateBadges } from '../services/badges.js';
+import { levelFromXp } from '../services/levels.js';
 import { broadcast } from '../services/community.js';
 import { MAX_PROFILE_PHOTO_BYTES, removeProfilePhoto, replaceProfilePhoto } from '../services/profilePhotos.js';
 
@@ -67,6 +70,9 @@ function publicUser(row) {
     role: row.role,
     membershipStatus: row.membership_status,
     profilePhotoUrl: row.profile_photo_url,
+    avatarFrame: avatarFrame(row),
+    ...levelFromXp(row.xp),
+    xp: Number(row.xp || 0),
   };
 }
 
@@ -178,6 +184,7 @@ router.post('/register/verify', async (req, res) => {
     [userId]
   );
   await sendWelcome(email);
+  await evaluateBadges(userId);
 
   const userRows = await query(`SELECT * FROM users WHERE id = ?`, [userId]);
   const user = userRows[0];
@@ -215,6 +222,10 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'Email not verified' });
   }
 
+  if (user.role === 'student') await evaluateBadges(user.id);
+  const [fresh] = await query(`SELECT * FROM users WHERE id = ?`, [user.id]);
+  const account = fresh ?? user;
+
   const accessToken = signAccessToken(user);
   const refresh = randomToken();
   await query(
@@ -222,7 +233,7 @@ router.post('/login', async (req, res) => {
      VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 30 DAY))`,
     [uuidv4(), user.id, hashToken(refresh)]
   );
-  return res.json({ accessToken, refreshToken: refresh, user: publicUser(user) });
+  return res.json({ accessToken, refreshToken: refresh, user: publicUser(account) });
 });
 
 // Refresh tokens are opaque random strings (only their hash is stored) and rotate on every use.
@@ -313,6 +324,7 @@ router.post('/password/change', requireAuth, async (req, res) => {
 });
 
 router.get('/me', requireAuth, async (req, res) => {
+  if (req.user.role === 'student') await evaluateBadges(req.user.id);
   const rows = await query(`SELECT * FROM users WHERE id = ?`, [req.user.id]);
   return res.json({ user: publicUser(rows[0]) });
 });
@@ -327,6 +339,7 @@ router.put('/me/photo', requireAuth, rawPhoto, async (req, res) => {
   const result = await replaceProfilePhoto(req.user.id, req.body);
   if (result.status !== 200) return res.status(result.status).json(result.body);
   broadcast({ type: 'profile', userId: req.user.id, photoUrl: result.url });
+  await evaluateBadges(req.user.id);
   const rows = await query(`SELECT * FROM users WHERE id = ?`, [req.user.id]);
   return res.json({ user: publicUser(rows[0]) });
 });

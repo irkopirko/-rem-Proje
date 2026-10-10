@@ -46,7 +46,10 @@ struct InkStudentTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 8)
         .padding(.bottom, 6)
-        .background(.ultraThinMaterial)
+        .background(Color(red: 0.07, green: 0.05, blue: 0.07))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+        }
     }
 
     private func accessibilityLabel(for tab: InkStudentTab) -> String {

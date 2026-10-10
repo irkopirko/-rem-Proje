@@ -5,6 +5,7 @@ struct HomeView: View {
     @State private var catalog = CatalogService()
     @State private var data: CatalogResponse?
     @State private var homework: [HomeworkAssignmentDTO] = []
+    @State private var badgeProgress: BadgeProgressResponse?
 
     var user: User? { container.sessionUser }
 
@@ -31,9 +32,11 @@ struct HomeView: View {
                                             .font(.system(size: 18, weight: .semibold))
                                             .foregroundStyle(InkMockup.textPrimary)
                                             .multilineTextAlignment(.leading)
-                                        Text(homework.first?.title ?? "Bekleyen ödevin yok")
-                                            .font(.system(size: 15))
-                                            .foregroundStyle(InkMockup.captionColor)
+                                        if user?.canSeeHomework == true {
+                                            Text(homework.first?.title ?? "Bekleyen ödevin yok")
+                                                .font(.system(size: 15))
+                                                .foregroundStyle(InkMockup.captionColor)
+                                        }
                                     }
                                     Spacer(minLength: 0)
                                     if data?.nextVideo != nil {
@@ -52,20 +55,34 @@ struct HomeView: View {
                         sectionTitle("Rozetler")
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 16) {
-                                ForEach(0..<4, id: \.self) { _ in
+                                ForEach(badgeProgress?.badges ?? []) { badge in
                                     VStack(spacing: 8) {
                                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                                             .fill(InkMockup.cardFill)
                                             .frame(width: 92, height: 92)
-                                            .overlay(
-                                                Image(systemName: "rosette")
-                                                    .font(.system(size: 34))
-                                                    .foregroundStyle(InkMockup.placeholderColor)
-                                            )
-                                        Text("rozet_name")
-                                            .font(.system(size: 13))
+                                            .overlay {
+                                                if let url = badge.imageURL {
+                                                    AsyncImage(url: url) { image in
+                                                        image.resizable().scaledToFit().padding(10)
+                                                    } placeholder: {
+                                                        Image(systemName: badge.symbolName)
+                                                            .font(.system(size: 30))
+                                                    }
+                                                } else {
+                                                    Image(systemName: badge.symbolName)
+                                                        .font(.system(size: 30))
+                                                }
+                                            }
+                                            .foregroundStyle(badge.isEarned ? InkMockup.accentPink : InkMockup.placeholderColor)
+                                            .opacity(badge.isEarned ? 1 : 0.45)
+                                        Text(badge.title)
+                                            .font(.system(size: 12, weight: .medium))
                                             .foregroundStyle(InkMockup.captionColor)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.center)
+                                            .frame(width: 92)
                                     }
+                                    .accessibilityLabel("\(badge.title), \(badge.xpReward) XP\(badge.isEarned ? ", kazanıldı" : "")")
                                 }
                             }
                         }
@@ -74,7 +91,9 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         sectionTitle("Haftalık Oyun")
                         NavigationLink {
-                            HiddenObjectGame()
+                            HiddenObjectGame { _ in
+                                Task { await reportWeeklyGame() }
+                            }
                         } label: {
                             InkMockCard {
                                 HStack(spacing: 14) {
@@ -121,11 +140,22 @@ struct HomeView: View {
             }
             .studentScreenBackground()
             .navigationBarHidden(true)
-            .task {
-                data = try? await catalog.fetchCatalog()
-                homework = (try? await catalog.fetchHomework()) ?? []
-            }
+            .task { await loadHome()             }
         }
+    }
+
+    private func loadHome() async {
+        data = try? await catalog.fetchCatalog()
+        if user?.canSeeHomework == true {
+            homework = (try? await catalog.fetchHomework()) ?? []
+        } else {
+            homework = []
+        }
+        badgeProgress = try? await catalog.fetchBadgeProgress()
+    }
+
+    private func reportWeeklyGame() async {
+        badgeProgress = try? await catalog.completeWeeklyGame()
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -136,15 +166,20 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            ProfileAvatarView(url: user?.profilePhotoURL, initials: user?.initials ?? "", size: 56)
+            ProfileAvatarView(url: user?.profilePhotoURL, initials: user?.initials ?? "", size: 56, frame: user?.avatarFrame ?? .gray)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Hoş geldin, \(user?.firstName ?? "user_name")")
                     .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(InkMockup.textPrimary)
-                Text("user_point_number")
+                Text((badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.caption ?? "Seviye 0  ·  0 XP")
                     .font(.system(size: 13))
                     .foregroundStyle(InkMockup.captionColor)
+                if let next = badgeProgress.map({ LevelMath.from(xp: $0.totalXp) }) ?? user?.levelProgress {
+                    Text(next.nextCaption)
+                        .font(.system(size: 11))
+                        .foregroundStyle(InkMockup.placeholderColor)
+                }
             }
 
             Spacer()
