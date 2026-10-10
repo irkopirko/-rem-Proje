@@ -13,6 +13,8 @@ enum AuthErrorMessage {
                 return LocalAuthError.usernameTaken.errorDescription ?? "Bu kullanıcı adı alınmış."
             case .server(let message) where message.localizedCaseInsensitiveContains("invalid or expired"):
                 return "Kod geçersiz veya süresi dolmuş."
+            case .server(let message) where message.localizedCaseInsensitiveContains("mail delivery failed"):
+                return "Onay e-postası şu an gönderilemedi. Birkaç dakika sonra tekrar dene."
             case .server(let message) where message.localizedCaseInsensitiveContains("invalid input"):
                 return "Bilgilerini kontrol edip tekrar dene."
             default:

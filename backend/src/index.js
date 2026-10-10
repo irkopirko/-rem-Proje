@@ -16,6 +16,7 @@ import mediaRoutes from './routes/media.js';
 import webhookRoutes from './routes/webhooks.js';
 import { ensureSuperAdmin, ensureCrewPortal } from './services/bootstrap.js';
 import { attachCommunitySocket } from './services/community.js';
+import { MailDeliveryError } from './services/mail.js';
 import { runMigrations } from './migrate.js';
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/v1', studentRoutes);
 
 app.use((err, _req, res, _next) => {
   if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Payload too large' });
+  if (err instanceof MailDeliveryError) return res.status(503).json({ error: 'Mail delivery failed' });
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
