@@ -34,7 +34,7 @@ export async function sendMail({ to, subject, text, html }) {
   }
   try {
     return await tx.sendMail({
-      from: process.env.MAIL_FROM || 'Ink Akademi <inkakademidestek@outlook.com>',
+      from: process.env.MAIL_FROM || 'Ink Akademi <noreply@inkakademionline.com>',
       to,
       subject,
       text,
