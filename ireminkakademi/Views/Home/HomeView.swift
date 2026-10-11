@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     let container: DIContainer
+    var hidesTabBar: Binding<Bool> = .constant(false)
     @State private var catalog = CatalogService()
     @State private var data: CatalogResponse?
     @State private var homework: [HomeworkAssignmentDTO] = []
@@ -219,6 +220,8 @@ struct HomeView: View {
 
             NavigationLink {
                 ChatView(container: container)
+                    .onAppear { hidesTabBar.wrappedValue = true }
+                    .onDisappear { hidesTabBar.wrappedValue = false }
             } label: {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 24))

@@ -58,6 +58,10 @@ struct CommunityRoomView: View {
                 )
             } else {
                 messageList
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if client.state != .forbidden {
                 composer
             }
         }

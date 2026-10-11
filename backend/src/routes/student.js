@@ -151,7 +151,7 @@ router.post('/videos/:id/progress', requireStudent, async (req, res) => {
 router.get('/products', async (req, res) => {
   const categories = await query(
     `SELECT id, name, image_url AS imageUrl, sort_order AS sortOrder
-     FROM product_categories WHERE is_published = 1 ORDER BY sort_order`
+     FROM product_categories WHERE is_published = 1 ORDER BY sort_order, name`
   );
   const products = await query(
     `SELECT id, category_id AS categoryId, name, image_url AS imageUrl, explanation, purchase_url AS purchaseUrl

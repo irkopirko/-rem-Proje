@@ -3,6 +3,7 @@ import SwiftUI
 struct StudentMainTabView: View {
     let container: DIContainer
     @State private var tab: InkStudentTab = .home
+    @State private var hidesTabBar = false
     @State private var appearance = AppearanceSettings.shared
     @State private var unlocks = BadgeUnlockStore.shared
     @Environment(\.scenePhase) private var scenePhase
@@ -12,7 +13,7 @@ struct StudentMainTabView: View {
             Group {
                 switch tab {
                 case .home:
-                    HomeView(container: container)
+                    HomeView(container: container, hidesTabBar: $hidesTabBar)
                 case .modules:
                     ModulesListView(container: container)
                 case .homework:
@@ -25,17 +26,19 @@ struct StudentMainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: 88)
+                Color.clear.frame(height: hidesTabBar ? 0 : 88)
             }
 
-            InkStudentTabBar(selection: $tab)
+            if !hidesTabBar {
+                InkStudentTabBar(selection: $tab)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+            }
         }
         .overlay {
             if let badge = unlocks.presented {
                 BadgeEarnedPopup(badge: badge) { unlocks.dismiss() }
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .environment(\.inkStudioChrome, true)
         .preferredColorScheme(appearance.colorScheme)
         .task { await refreshBadges() }

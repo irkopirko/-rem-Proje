@@ -158,10 +158,14 @@ struct LiveSessionDTO: Decodable, Identifiable {
     let startsAt: String
 }
 
-struct ProductCategoryDTO: Identifiable, Decodable {
+struct ProductCategoryDTO: Identifiable, Decodable, Hashable {
     let id: String
     let name: String
     let imageUrl: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, imageUrl
+    }
 }
 
 struct ProductImageDTO: Identifiable, Codable, Hashable {
@@ -177,7 +181,7 @@ struct ProductImageDTO: Identifiable, Codable, Hashable {
     }
 }
 
-struct ProductDTO: Identifiable, Decodable {
+struct ProductDTO: Identifiable, Decodable, Hashable {
     let id: String
     let categoryId: String
     let name: String
@@ -188,6 +192,48 @@ struct ProductDTO: Identifiable, Decodable {
     var isPublished: Bool? = nil
 
     var gallery: [ProductImageDTO] { images ?? [] }
+
+    init(
+        id: String,
+        categoryId: String,
+        name: String,
+        imageUrl: String?,
+        explanation: String?,
+        purchaseUrl: String,
+        images: [ProductImageDTO]? = nil,
+        isPublished: Bool? = nil
+    ) {
+        self.id = id
+        self.categoryId = categoryId
+        self.name = name
+        self.imageUrl = imageUrl
+        self.explanation = explanation
+        self.purchaseUrl = purchaseUrl
+        self.images = images
+        self.isPublished = isPublished
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, categoryId, name, imageUrl, explanation, purchaseUrl, images, isPublished
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        categoryId = (try c.decodeIfPresent(String.self, forKey: .categoryId) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        explanation = try c.decodeIfPresent(String.self, forKey: .explanation)
+        purchaseUrl = try c.decodeIfPresent(String.self, forKey: .purchaseUrl) ?? ""
+        images = try c.decodeIfPresent([ProductImageDTO].self, forKey: .images)
+        if let flag = try? c.decodeIfPresent(Bool.self, forKey: .isPublished) {
+            isPublished = flag
+        } else if let number = try? c.decodeIfPresent(Int.self, forKey: .isPublished) {
+            isPublished = number != 0
+        } else {
+            isPublished = nil
+        }
+    }
 }
 
 /// Crew'un eklediği ürün linki (ör. Shopier). Yalnızca https kabul edilir.

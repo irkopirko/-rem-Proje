@@ -32,7 +32,7 @@ struct AssignmentsListView: View {
                                 Text("Gösterilecek ödev yok")
                                     .font(AppTypography.cardTitle())
                                     .foregroundStyle(InkMockup.textPrimary)
-                                Text("Crew senin üyelik sürümüne açık bir ödev yayınladığında burada görünür.")
+                                Text("Ink Akademi senin üyelik sürümüne açık bir ödev yayınladığında burada görünür.")
                                     .font(AppTypography.body(size: 14))
                                     .foregroundStyle(InkMockup.captionColor)
                             }

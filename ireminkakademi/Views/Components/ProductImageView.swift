@@ -53,7 +53,7 @@ struct ProductGalleryView: View {
                 ProductImageView(url: nil)
             } else {
                 TabView(selection: $selection) {
-                    ForEach(Array(images.enumerated()), id: \.element.id) { index, image in
+                    ForEach(Array(images.enumerated()), id: \.offset) { index, image in
                         ProductImageView(url: image.resolvedURL)
                             .tag(index)
                     }

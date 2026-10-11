@@ -211,7 +211,7 @@ struct MembershipInfoView: View {
 
     private var description: String {
         switch user?.membershipStatus {
-        case .trial: return "Deneme üyeliğin aktif. Ink Akademi Crew'un deneme sürümüne açtığı videoları izleyebilirsin. Ödevler abonelikle açılır."
+        case .trial: return "Deneme üyeliğin aktif. Ink Akademi'nin deneme sürümüne açtığı videoları izleyebilirsin. Ödevler abonelikle açılır."
         case .trialExpired: return "Deneme süren doldu. Eğitimlere devam etmek için üyeliğini yenileyebilirsin."
         case .plus, .lifePlus: return "Tüm eğitimlere, ödevlere ve canlı yayınlara erişimin var."
         case .light: return "Satın almış üyeler gibi eğitimlere ve ödevlere erişimin var."
