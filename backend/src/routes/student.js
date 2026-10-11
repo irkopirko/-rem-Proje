@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { requireAuth, requireStudent } from '../middleware/auth.js';
 import { attachImages } from '../services/contentImages.js';
-import { isStreamConfigured, streamPlaybackUrl } from '../services/bunny.js';
+import { isStreamConfigured, streamEmbedUrl, streamPlaybackUrl } from '../services/bunny.js';
 import { ensurePlayable, refreshStaleProcessing, videoDTO } from '../services/videoCatalog.js';
 import { canSeeHomework, canSeeHomeworkItem, canWatchVideo, studentHomeworkAccessSql, studentVideoAccessSql } from '../services/membership.js';
 import { guideForStudent } from '../services/guide.js';
@@ -101,10 +101,12 @@ router.get('/videos/:id/playback', async (req, res) => {
   }
   if (!canWatchVideo(req.user, row)) return res.status(402).json({ error: 'Membership required' });
   const playback = streamPlaybackUrl(row.bunny_video_id);
+  const embed = streamEmbedUrl(row.bunny_video_id);
   return res.json({
     video: videoDTO(row, row),
     hlsUrl: playback.url,
-    expiresAt: playback.expiresAt,
+    embedUrl: embed.url,
+    expiresAt: embed.expiresAt,
   });
 });
 

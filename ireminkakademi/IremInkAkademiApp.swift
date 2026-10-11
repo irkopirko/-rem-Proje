@@ -21,6 +21,7 @@ struct IremInkAkademiApp: App {
 
 struct RootView: View {
     let container: DIContainer
+    @State private var appearance = AppearanceSettings.shared
 
     var body: some View {
         Group {
@@ -37,6 +38,28 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: container.router.isAuthenticated)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(resolvedColorScheme)
+        .onAppear { AppearanceSettings.applyWindowInterfaceStyle(resolvedColorScheme) }
+        .onChange(of: appearance.isDark) { _, _ in
+            AppearanceSettings.applyWindowInterfaceStyle(resolvedColorScheme)
+        }
+        .onChange(of: container.router.isAuthenticated) { _, _ in
+            AppearanceSettings.applyWindowInterfaceStyle(resolvedColorScheme)
+        }
+        .onChange(of: container.router.phase) { _, _ in
+            AppearanceSettings.applyWindowInterfaceStyle(resolvedColorScheme)
+        }
+    }
+
+    /// Window trait must match the chosen mode so `Color(light:dark:)` resolves correctly.
+    /// Auth and Crew stay light; students follow Hesabım.
+    private var resolvedColorScheme: ColorScheme {
+        if container.router.phase == .welcome || !container.router.isAuthenticated {
+            return .light
+        }
+        if container.sessionUser?.role == .crew || container.sessionUser?.role == .superAdmin {
+            return .light
+        }
+        return appearance.colorScheme
     }
 }

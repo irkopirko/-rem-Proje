@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @Observable
 final class AppearanceSettings {
@@ -17,6 +18,17 @@ final class AppearanceSettings {
             isDark = true
         } else {
             isDark = UserDefaults.standard.bool(forKey: key)
+        }
+    }
+
+    /// `Color(light:dark:)` reads the window trait, not only the SwiftUI environment.
+    static func applyWindowInterfaceStyle(_ scheme: ColorScheme) {
+        let style: UIUserInterfaceStyle = scheme == .dark ? .dark : .light
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = style
+            }
         }
     }
 }

@@ -285,7 +285,7 @@ struct BadgeGlyph: View {
                 fallback
             }
         } else if let name = badge.localImageName {
-            Image(name).resizable().scaledToFit().padding(6)
+            Image(name).resizable().renderingMode(.original).scaledToFit().padding(6)
         } else {
             fallback
         }

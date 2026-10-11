@@ -117,6 +117,7 @@ struct ModuleVideosResponse: Decodable {
 struct PlaybackDTO: Decodable {
     let video: VideoDTO
     let hlsUrl: String
+    let embedUrl: String?
     let expiresAt: String
 }
 

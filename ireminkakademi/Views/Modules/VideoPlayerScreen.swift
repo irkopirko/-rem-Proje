@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import WebKit
 
 /// Bunny Stream HLS oynatıcı. Uyarlanabilir bit hızıyla bağlantının izin verdiği en yüksek
 /// kaliteyi (yüklenen orijinal çözünürlüğe kadar) seçer; takılmayı önlemek için ara bellek kullanır.
@@ -13,6 +14,7 @@ final class VideoPlaybackModel {
 
     private(set) var phase: Phase = .loading
     private(set) var video: VideoDTO
+    private(set) var embedURL: URL?
     let player = AVPlayer()
 
     @ObservationIgnored private let catalog = CatalogService()
@@ -39,9 +41,21 @@ final class VideoPlaybackModel {
             return
         }
         phase = .loading
+        embedURL = nil
         do {
             let playback = try await catalog.fetchPlayback(videoId: video.id)
             video = playback.video
+
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .moviePlayback)
+            try? session.setActive(true)
+
+            if let embed = playback.embedUrl, let url = URL(string: embed) {
+                embedURL = url
+                phase = .ready
+                return
+            }
+
             guard let url = URL(string: playback.hlsUrl) else { throw InkAPIError.invalidURL }
 
             let asset = AVURLAsset(url: url, options: [
@@ -52,10 +66,6 @@ final class VideoPlaybackModel {
             item.preferredMaximumResolution = .zero
             item.preferredForwardBufferDuration = 3
             player.replaceCurrentItem(with: item)
-
-            let session = AVAudioSession.sharedInstance()
-            try? session.setCategory(.playback, mode: .moviePlayback)
-            try? session.setActive(true)
 
             try await waitUntilPlayable(item)
 
@@ -70,18 +80,31 @@ final class VideoPlaybackModel {
         } catch InkAPIError.paymentRequired {
             phase = .failed("Videoları izlemek için aktif üyelik gerekiyor.")
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(Self.playbackErrorMessage(error))
         }
     }
 
     func retry() async {
         player.replaceCurrentItem(with: nil)
+        embedURL = nil
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         timeObserver = nil
         endObserver = nil
         lastReported = -1
         await start()
+    }
+
+    func applyEmbedTime(seconds: Double, duration: Double) {
+        let position = Int(seconds.rounded(.down))
+        maxPosition = max(maxPosition, position)
+        if duration > 0, seconds >= duration * 0.9 { completed = true }
+        if abs(position - lastReported) >= 15 { report(force: false) }
+    }
+
+    func markEmbedEnded() {
+        completed = true
+        report(force: true)
     }
 
     func stop() {
@@ -105,6 +128,19 @@ final class VideoPlaybackModel {
         if item.status == .failed {
             throw item.error ?? InkAPIError.server("Video açılamadı.")
         }
+    }
+
+    private static func playbackErrorMessage(_ error: Error) -> String {
+        let raw = error.localizedDescription
+        if raw.localizedCaseInsensitiveContains("permission")
+            || raw.localizedCaseInsensitiveContains("403")
+            || raw.localizedCaseInsensitiveContains("forbidden") {
+            return "Video şu an oynatılamıyor. Biraz sonra tekrar dene."
+        }
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Video açılamadı."
+        }
+        return raw
     }
 
     private func observe(_ item: AVPlayerItem) {
@@ -141,9 +177,9 @@ final class VideoPlaybackModel {
     }
 
     private func report(force: Bool) {
-        guard reportsProgress, player.currentItem != nil else { return }
-        let seconds = player.currentTime().seconds
-        let position = seconds.isFinite ? Int(seconds) : 0
+        guard reportsProgress, player.currentItem != nil || embedURL != nil else { return }
+        let seconds = player.currentItem != nil ? player.currentTime().seconds : Double(maxPosition)
+        let position = seconds.isFinite ? Int(seconds) : maxPosition
         guard force || position != lastReported else { return }
         lastReported = position
         let id = video.id, watched = maxPosition, done = completed
@@ -226,7 +262,18 @@ struct VideoPlayerScreen: View {
                     .controlSize(.large)
             }
         case .ready:
-            VideoPlayer(player: model.player)
+            if let embedURL = model.embedURL {
+                BunnyEmbedPlayer(
+                    url: embedURL,
+                    resumeSeconds: model.video.lastPositionSeconds ?? 0,
+                    onTime: { seconds, duration in
+                        model.applyEmbedTime(seconds: seconds, duration: duration)
+                    },
+                    onEnded: { model.markEmbedEnded() }
+                )
+            } else {
+                VideoPlayer(player: model.player)
+            }
         case .failed(let message):
             VStack(spacing: 14) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -246,6 +293,116 @@ struct VideoPlayerScreen: View {
             .foregroundStyle(.white)
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// Bunny Stream iframe. Direct HLS is blocked when the library forbids raw CDN files.
+private struct BunnyEmbedPlayer: UIViewRepresentable {
+    let url: URL
+    var resumeSeconds: Int = 0
+    var onTime: (Double, Double) -> Void
+    var onEnded: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(resumeSeconds: resumeSeconds, onTime: onTime, onEnded: onEnded)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        config.allowsPictureInPictureMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+        config.userContentController.add(context.coordinator, name: "bunny")
+        let web = WKWebView(frame: .zero, configuration: config)
+        web.isOpaque = false
+        web.backgroundColor = .black
+        web.scrollView.isScrollEnabled = false
+        web.scrollView.backgroundColor = .black
+        return web
+    }
+
+    func updateUIView(_ web: WKWebView, context: Context) {
+        context.coordinator.onTime = onTime
+        context.coordinator.onEnded = onEnded
+        guard context.coordinator.loadedURL != url else { return }
+        context.coordinator.loadedURL = url
+        web.loadHTMLString(Self.page(url: url, resumeSeconds: resumeSeconds), baseURL: URL(string: "https://iframe.mediadelivery.net"))
+    }
+
+    static func dismantleUIView(_ web: WKWebView, coordinator: Coordinator) {
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "bunny")
+        web.stopLoading()
+    }
+
+    private static func page(url: URL, resumeSeconds: Int) -> String {
+        let src = url.absoluteString.replacingOccurrences(of: "&", with: "&amp;")
+        let resume = max(0, resumeSeconds)
+        return """
+        <!DOCTYPE html>
+        <html><head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <style>
+          html,body,#box{margin:0;padding:0;background:#000;height:100%;overflow:hidden}
+          iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+        </style>
+        </head><body>
+        <div id="box">
+          <iframe id="player" src="\(src)" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+        </div>
+        <script>
+        var resume = \(resume);
+        window.addEventListener('message', function (e) {
+          var d = e.data;
+          if (typeof d === 'string') { try { d = JSON.parse(d); } catch (err) { return; } }
+          if (!d || d.context !== 'player.js') return;
+          if (d.event === 'ready' && resume > 5) {
+            var frame = document.getElementById('player');
+            if (frame && frame.contentWindow) {
+              frame.contentWindow.postMessage(JSON.stringify({
+                context: 'player.js', version: '0.0.11', method: 'setCurrentTime', value: resume
+              }), '*');
+            }
+            resume = 0;
+          }
+          var value = d.value || {};
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bunny) {
+            window.webkit.messageHandlers.bunny.postMessage({
+              event: d.event || '',
+              seconds: value.seconds,
+              duration: value.duration
+            });
+          }
+        });
+        </script>
+        </body></html>
+        """
+    }
+
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        var loadedURL: URL?
+        var resumeSeconds: Int
+        var onTime: (Double, Double) -> Void
+        var onEnded: () -> Void
+
+        init(resumeSeconds: Int, onTime: @escaping (Double, Double) -> Void, onEnded: @escaping () -> Void) {
+            self.resumeSeconds = resumeSeconds
+            self.onTime = onTime
+            self.onEnded = onEnded
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any] else { return }
+            let event = body["event"] as? String ?? ""
+            if event == "ended" {
+                onEnded()
+                return
+            }
+            let seconds = (body["seconds"] as? Double) ?? (body["seconds"] as? NSNumber)?.doubleValue ?? 0
+            let duration = (body["duration"] as? Double) ?? (body["duration"] as? NSNumber)?.doubleValue ?? 0
+            if event == "timeupdate" || seconds > 0 {
+                onTime(seconds, duration)
+            }
         }
     }
 }

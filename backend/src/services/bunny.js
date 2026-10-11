@@ -101,28 +101,45 @@ export function tusCredentials(guid, ttlSeconds = 24 * 3600) {
   };
 }
 
+function normalizeCdnHost(host) {
+  return String(host || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .split('/')[0];
+}
+
 /**
- * Bunny "advanced token authentication". With `directory`, the token is placed in the path so
- * every HLS segment under that directory inherits it.
+ * Bunny advanced token authentication (HMAC-SHA256, HS256- prefix).
+ * With `directory`, the token sits in the path so HLS segments inherit it.
+ * @see https://github.com/BunnyWay/BunnyCDN.TokenAuthentication
  */
 export function signBunnyUrl({ host, path, tokenKey, expires, directory }) {
-  if (!tokenKey) return `https://${host}${path}`;
-  const signaturePath = directory ?? path;
-  const params = directory ? [['token_path', directory]] : [];
-  const parameterData = params.map(([k, v]) => `${k}=${v}`).join('&');
-  const parameterDataUrl = params.map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join('');
-  const token = crypto
-    .createHash('sha256')
-    .update(tokenKey + signaturePath + expires + parameterData)
-    .digest('base64')
-    .replace(/\n/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  const cleanHost = normalizeCdnHost(host);
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (!cleanHost) return cleanPath;
+  if (!tokenKey) return `https://${cleanHost}${cleanPath}`;
+
+  const expiresStr = String(expires);
+  const parameters = directory ? { token_path: directory } : {};
+  const sortedEntries = Object.entries(parameters).sort(([a], [b]) => a.localeCompare(b));
+  const signaturePath = directory || cleanPath;
+  const signingData = sortedEntries.map(([k, v]) => `${k}=${v}`).join('&');
+  const urlData = sortedEntries.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+
+  const hmac = crypto.createHmac('sha256', tokenKey);
+  hmac.update(signaturePath);
+  hmac.update(expiresStr);
+  hmac.update(signingData);
+  const token =
+    'HS256-' +
+    hmac.digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const tail = urlData ? `&${urlData}` : '';
   if (directory) {
-    return `https://${host}/bcdn_token=${token}${parameterDataUrl}&expires=${expires}${path}`;
+    return `https://${cleanHost}/bcdn_token=${token}${tail}&expires=${expiresStr}${cleanPath}`;
   }
-  return `https://${host}${path}?token=${token}${parameterDataUrl}&expires=${expires}`;
+  return `https://${cleanHost}${cleanPath}?token=${token}${tail}&expires=${expiresStr}`;
 }
 
 /** Expiry that stays constant for a whole UTC day, so signed thumbnail URLs remain cacheable. */
@@ -135,14 +152,36 @@ export function stableDailyExpiry(extraDays = 1) {
 export function streamPlaybackUrl(guid, ttlSeconds = 6 * 3600) {
   const s = stream();
   const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const id = String(guid).trim();
   return {
     url: signBunnyUrl({
       host: s.cdnHost,
-      path: `/${guid}/playlist.m3u8`,
+      path: `/${id}/playlist.m3u8`,
       tokenKey: s.tokenKey,
       expires,
-      directory: `/${guid}/`,
+      directory: `/${id}/`,
     }),
+    expiresAt: new Date(expires * 1000).toISOString(),
+  };
+}
+
+/** Bunny player iframe. Direct HLS is blocked when the library forbids raw file access. */
+export function streamEmbedUrl(guid, ttlSeconds = 6 * 3600) {
+  const s = stream();
+  const id = String(guid).trim();
+  const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const params = new URLSearchParams({
+    autoplay: 'true',
+    preload: 'true',
+    responsive: 'true',
+  });
+  if (s.tokenKey) {
+    const token = crypto.createHash('sha256').update(`${s.tokenKey}${id}${expires}`).digest('hex');
+    params.set('token', token);
+    params.set('expires', String(expires));
+  }
+  return {
+    url: `https://iframe.mediadelivery.net/embed/${s.libraryId}/${id}?${params}`,
     expiresAt: new Date(expires * 1000).toISOString(),
   };
 }

@@ -60,10 +60,10 @@ struct InkStudentTabBar: View {
                     .frame(width: 44, height: 44)
                 Image(isActive ? tab.selectedIcon : tab.normalIcon)
                     .resizable()
+                    .renderingMode(.original)
                     .scaledToFit()
                     .frame(width: iconSize, height: iconSize)
-                    .brightness(isActive ? 0.05 : -0.06)
-                    .opacity(isActive ? 1 : 0.78)
+                    .opacity(isActive ? 1 : 0.55)
                     .shadow(color: isActive ? InkGlass.rose.opacity(0.32) : .clear, radius: 7, y: 0)
             }
             .frame(maxWidth: .infinity)

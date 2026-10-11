@@ -154,11 +154,15 @@ struct CommunityRoomView: View {
                             .padding(.top, 40)
                     }
 
-                    ForEach(client.messages) { message in
-                        bubble(message).id(message.id)
-                    }
-                    ForEach(client.pending) { message in
-                        pendingBubble(message).id(message.id)
+                    ForEach(timelineRows) { row in
+                        switch row {
+                        case .day(let date):
+                            dayHeader(date)
+                        case .message(let message):
+                            bubble(message).id(message.id)
+                        case .pending(let message):
+                            pendingBubble(message).id(message.id)
+                        }
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -174,6 +178,41 @@ struct CommunityRoomView: View {
                 withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
+    }
+
+    private var timelineRows: [ChatTimelineRow] {
+        var rows: [ChatTimelineRow] = []
+        var lastDay: Date?
+        let calendar = ChatDay.calendar
+        for message in client.messages {
+            let day = calendar.startOfDay(for: message.date ?? .now)
+            if lastDay != day {
+                rows.append(.day(day))
+                lastDay = day
+            }
+            rows.append(.message(message))
+        }
+        if !client.pending.isEmpty {
+            let today = calendar.startOfDay(for: .now)
+            if lastDay != today {
+                rows.append(.day(today))
+            }
+            for message in client.pending {
+                rows.append(.pending(message))
+            }
+        }
+        return rows
+    }
+
+    private func dayHeader(_ date: Date) -> some View {
+        Text(ChatDay.title(for: date))
+            .font(AppTypography.monoMedium(size: 11))
+            .foregroundStyle(InkMockup.captionColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(InkGlass.surface.opacity(0.72), in: Capsule())
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -329,6 +368,46 @@ struct CommunityRoomView: View {
     private var canSubmit: Bool {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         return client.canSend && client.state == .online && !trimmed.isEmpty && trimmed.count <= client.maxLength
+    }
+}
+
+private enum ChatTimelineRow: Identifiable {
+    case day(Date)
+    case message(CommunityMessage)
+    case pending(PendingCommunityMessage)
+
+    var id: String {
+        switch self {
+        case .day(let date): return "day-\(date.timeIntervalSince1970)"
+        case .message(let message): return message.id
+        case .pending(let message): return message.id
+        }
+    }
+}
+
+private enum ChatDay {
+    static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "tr_TR")
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        return calendar
+    }()
+
+    static func title(for date: Date) -> String {
+        let today = calendar.startOfDay(for: .now)
+        let day = calendar.startOfDay(for: date)
+        let gap = calendar.dateComponents([.day], from: day, to: today).day ?? 0
+        if gap == 0 { return "Bugün" }
+        if gap == 1 { return "Dün" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.timeZone = calendar.timeZone
+        if gap < 7 {
+            formatter.dateFormat = "EEEE"
+            return formatter.string(from: date)
+        }
+        formatter.dateFormat = "d MMMM yyyy"
+        return formatter.string(from: date)
     }
 }
 
