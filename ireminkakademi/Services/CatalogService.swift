@@ -65,6 +65,10 @@ final class CatalogService {
         struct OK: Decodable { let ok: Bool }
         let _: OK = try await api.upload("/v1/homework/\(assignmentId)/submit", data: data, contentType: contentType)
     }
+
+    func fetchGuide() async throws -> GuideDTO {
+        try await api.request("/v1/guide", authorized: true)
+    }
 }
 
 enum MockCatalog {

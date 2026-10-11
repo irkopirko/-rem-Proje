@@ -182,7 +182,7 @@ struct CommunityRoomView: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isMe { Spacer(minLength: 48) }
             if !isMe {
-                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32, frame: message.avatarFrame)
+                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32, frame: message.avatarFrame, rank: message.rank)
                     .padding(.bottom, 16)
             }
             VStack(alignment: isMe ? .trailing : .leading, spacing: 3) {

@@ -8,11 +8,13 @@ struct CommunityMessage: Identifiable, Decodable, Equatable {
     let role: String
     var photoUrl: String?
     var frame: String? = nil
+    var xp: Int? = nil
     let body: String
     let createdAt: String
 
     var isStaff: Bool { role == "crew" || role == "super_admin" }
     var avatarFrame: AvatarFrame { frame.flatMap(AvatarFrame.init(rawValue:)) ?? (isStaff ? .purple : .gray) }
+    var rank: AcademyRank { AcademyRank.forLevel(LevelMath.from(xp: xp ?? 0).level) }
     var photoURL: URL? { MediaURL.resolve(photoUrl) }
     var initials: String {
         String(displayName.drop { $0 == "@" }.prefix(1)).uppercased(with: Locale(identifier: "tr_TR"))

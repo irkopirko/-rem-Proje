@@ -19,6 +19,8 @@ struct CrewLearningView: View {
     var body: some View {
         NavigationStack {
             List {
+                CrewGuideSection()
+
                 if !videoServiceConfigured {
                     Section {
                         Label {

@@ -27,12 +27,13 @@ export function messageDTO(row) {
     role: row.role,
     photoUrl: row.profile_photo_url ?? null,
     frame: avatarFrame(row),
+    xp: Number(row.xp || 0),
     body: row.body,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
 
-const MESSAGE_SELECT = `SELECT cm.id, cm.user_id, cm.body, cm.created_at, u.username, u.first_name, u.role, u.membership_status, u.profile_photo_url
+const MESSAGE_SELECT = `SELECT cm.id, cm.user_id, cm.body, cm.created_at, u.username, u.first_name, u.role, u.membership_status, u.profile_photo_url, u.xp
   FROM community_messages cm JOIN users u ON u.id = cm.user_id`;
 
 export async function loadMessage(id) {

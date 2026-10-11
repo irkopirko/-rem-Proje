@@ -61,7 +61,6 @@ function formatDate(value) {
 function publicUser(row) {
   return {
     id: row.id,
-    userNo: row.user_no,
     username: row.username ?? null,
     birthDate: formatDate(row.birth_date),
     email: row.email,

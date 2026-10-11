@@ -472,8 +472,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Ink Akademi";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSCameraUsageDescription = "QR kodu taramak icin kamera erisimi gereklidir.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Profil fotoğrafı ve ödev görseli eklemek için kamera kullanılır.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Profil fotoğrafı ve ödev dosyası seçmek için fotoğraflarına erişilir.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
@@ -510,8 +512,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Ink Akademi";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSCameraUsageDescription = "QR kodu taramak icin kamera erisimi gereklidir.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Profil fotoğrafı ve ödev görseli eklemek için kamera kullanılır.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Profil fotoğrafı ve ödev dosyası seçmek için fotoğraflarına erişilir.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;

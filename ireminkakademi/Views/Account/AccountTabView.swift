@@ -72,7 +72,7 @@ struct AccountTabView: View {
     }
 
     private var profileSummary: some View {
-        HStack(spacing: 16) {
+        HStack(alignment: .top, spacing: 16) {
             EditableProfileAvatar(container: container, size: 84)
             VStack(alignment: .leading, spacing: 3) {
                 Text(user?.displayName ?? "")
@@ -107,9 +107,6 @@ struct PersonalInfoView: View {
                 InkReadOnlyField(title: "Soyisim", value: user?.lastName)
                 InkReadOnlyField(title: "Doğum tarihi", value: user?.formattedBirthDate)
                 InkReadOnlyField(title: "E-mail", value: user?.email)
-                if let userNo = user?.userNo {
-                    InkReadOnlyField(title: "Üye numarası", value: "#\(userNo)")
-                }
 
                 Text("Bu bilgiler güvenliğin için değiştirilemez. Bir yanlışlık varsa \"Bize Ulaş\" üzerinden bize yazabilirsin.")
                     .font(.system(size: 12))

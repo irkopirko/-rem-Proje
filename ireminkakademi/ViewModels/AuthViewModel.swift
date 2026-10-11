@@ -29,12 +29,6 @@ final class AuthViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        // With a real backend the crew account must log in on the server so its API calls carry a token.
-        if !APIConfiguration.isConfigured, CrewPortalAccess.validate(identifier: trimmed, password: password) {
-            container.completeLogin(user: CrewPortalAccess.portalUser)
-            return
-        }
-
         do {
             let user = try await authService.login(identifier: trimmed, password: password)
             container.completeLogin(user: user)

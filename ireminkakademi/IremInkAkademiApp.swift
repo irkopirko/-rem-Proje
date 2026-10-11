@@ -5,7 +5,7 @@ struct IremInkAkademiApp: App {
     @State private var container = DIContainer()
 
     init() {
-        URLCache.shared = URLCache(memoryCapacity: 64 * 1024 * 1024, diskCapacity: 512 * 1024 * 1024)
+        URLCache.shared = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: 64 * 1024 * 1024)
     }
 
     var body: some Scene {

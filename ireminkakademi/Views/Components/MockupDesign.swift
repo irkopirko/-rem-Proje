@@ -288,16 +288,28 @@ extension View {
         }
     }
 
-    /// `motion.mov` döngüsel video arka planı.
+    /// `motion.mov` döngüsel video arka planı. Video açılmazsa `image-background` kalır.
     func inkMotionBackground(dimming: Double = 0) -> some View {
         background {
             ZStack {
+                inkImageFill("image-background")
                 LoopingVideoView(resource: "motion", fileExtension: "mov")
                 if dimming > 0 {
                     Color.black.opacity(dimming)
                 }
             }
             .ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
+    private func inkImageFill(_ name: String) -> some View {
+        GeometryReader { proxy in
+            Image(name)
+                .resizable()
+                .scaledToFill()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
         }
     }
 }
@@ -309,14 +321,18 @@ struct LoopingVideoView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> PlayerContainerView {
         let view = PlayerContainerView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
         guard let url = Bundle.main.url(forResource: resource, withExtension: fileExtension) else { return view }
         let item = AVPlayerItem(url: url)
         let player = AVQueuePlayer()
         player.isMuted = true
+        player.automaticallyWaitsToMinimizeStalling = false
         context.coordinator.looper = AVPlayerLooper(player: player, templateItem: item)
         view.playerLayer.player = player
         view.playerLayer.videoGravity = .resizeAspectFill
-        player.play()
+        view.playerLayer.backgroundColor = UIColor.clear.cgColor
+        DispatchQueue.main.async { player.play() }
         return view
     }
 

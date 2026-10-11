@@ -7,27 +7,53 @@ struct ProfileAvatarView: View {
     let initials: String
     var size: CGFloat = 56
     var frame: AvatarFrame = .gray
+    var rank: AcademyRank? = nil
+    var showsCameraBadge = false
+    var isBusy = false
 
     var body: some View {
-        Circle()
-            .fill(InkMockup.fieldFill)
-            .frame(width: size, height: size)
-            .overlay {
-                if let url {
-                    AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            placeholder
+        VStack(spacing: max(3, size * 0.08)) {
+            Circle()
+                .fill(InkMockup.fieldFill)
+                .frame(width: size, height: size)
+                .overlay {
+                    if let url {
+                        AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                placeholder
+                            }
                         }
+                    } else {
+                        placeholder
                     }
-                } else {
-                    placeholder
                 }
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(frameStroke, lineWidth: max(2, size * 0.055)))
+                .overlay {
+                    if isBusy {
+                        Circle().fill(.black.opacity(0.35))
+                        ProgressView().tint(.white)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if showsCameraBadge {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: size * 0.15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(size * 0.08)
+                            .background(Circle().fill(Color.black))
+                            .overlay(Circle().stroke(.white, lineWidth: 2))
+                    }
+                }
+
+            if let rank {
+                RankStarsView(rank: rank, width: size)
             }
-            .clipShape(Circle())
-            .overlay(Circle().strokeBorder(frameStroke, lineWidth: max(2, size * 0.055)))
-            .accessibilityHidden(true)
+        }
+        .frame(width: size)
+        .accessibilityHidden(true)
     }
 
     private var frameStroke: some ShapeStyle {
@@ -75,6 +101,32 @@ struct ProfileAvatarView: View {
     }
 }
 
+struct RankStarsView: View {
+    let rank: AcademyRank
+    var width: CGFloat = 56
+
+    var body: some View {
+        HStack(spacing: max(1, width * 0.04)) {
+            ForEach(0..<rank.starCount, id: \.self) { _ in
+                Image(systemName: "star.fill")
+            }
+        }
+        .font(.system(size: max(9, width * 0.2)))
+        .foregroundStyle(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.98, green: 0.86, blue: 0.42),
+                    Color(red: 0.86, green: 0.64, blue: 0.18),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .frame(width: width)
+        .accessibilityLabel(rank.label)
+    }
+}
+
 enum ProfilePhotoProcessor {
     static let side: CGFloat = 512
 
@@ -109,21 +161,15 @@ struct EditableProfileAvatar: View {
 
     var body: some View {
         Button { showOptions = true } label: {
-            ProfileAvatarView(url: user?.profilePhotoURL, initials: user?.initials ?? "", size: size, frame: user?.avatarFrame ?? .gray)
-                .overlay {
-                    if isWorking {
-                        Circle().fill(.black.opacity(0.35))
-                        ProgressView().tint(.white)
-                    }
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: size * 0.15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(size * 0.08)
-                        .background(Circle().fill(Color.black))
-                        .overlay(Circle().stroke(.white, lineWidth: 2))
-                }
+            ProfileAvatarView(
+                url: user?.profilePhotoURL,
+                initials: user?.initials ?? "",
+                size: size,
+                frame: user?.avatarFrame ?? .gray,
+                rank: user?.levelProgress.rank,
+                showsCameraBadge: true,
+                isBusy: isWorking
+            )
         }
         .buttonStyle(.plain)
         .disabled(isWorking)

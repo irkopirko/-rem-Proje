@@ -19,6 +19,7 @@ import { seedBadges } from './services/badges.js';
 import { attachCommunitySocket } from './services/community.js';
 import { MailDeliveryError } from './services/mail.js';
 import { runMigrations } from './migrate.js';
+import { privacyHtml, termsHtml } from './services/legalPages.js';
 
 const app = express();
 // Railway terminates TLS at a single proxy hop; needed for correct req.ip and rate limiting.
@@ -43,6 +44,17 @@ app.use(['/auth/login', '/auth/register', '/auth/password/forgot', '/auth/passwo
 app.use('/auth', limiter(15 * 60 * 1000, 300), authRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'ink-akademi-api' }));
+
+function sendLegal(res, html) {
+  res.set({
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; base-uri 'none'",
+    'Cache-Control': 'public, max-age=3600',
+  });
+  res.send(html);
+}
+app.get(['/gizlilik', '/privacy'], (_req, res) => sendLegal(res, privacyHtml()));
+app.get(['/kosullar', '/terms'], (_req, res) => sendLegal(res, termsHtml()));
 
 // Mail clients embed these images from other origins.
 app.use(

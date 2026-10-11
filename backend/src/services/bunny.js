@@ -183,3 +183,15 @@ export function storageCdnUrl(key) {
   if (!s.cdnHost) return null;
   return signBunnyUrl({ host: s.cdnHost, path: `/${key}`, tokenKey: s.tokenKey, expires: stableDailyExpiry() });
 }
+
+/** Authenticated crew uploads the file itself (book-sized PDFs must not pass through Railway). */
+export function storagePutTarget(key, contentType) {
+  const s = storage();
+  if (!isStorageConfigured()) return null;
+  return {
+    url: `https://${s.host}/${s.zone}/${key}`,
+    method: 'PUT',
+    headers: { AccessKey: s.apiKey, 'Content-Type': contentType || 'application/octet-stream' },
+    key,
+  };
+}

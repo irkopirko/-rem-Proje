@@ -85,6 +85,23 @@ final class InkAPIClient {
         return try await send(req, authorized: true) { try await self.session.upload(for: $0, from: data) }
     }
 
+    /// Büyük dosyayı diskten doğrudan hedef adrese yollar (Railway üzerinden geçmez).
+    func putFile(to url: URL, fileURL: URL, headers: [String: String]) async throws {
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        req.timeoutInterval = 60 * 45
+        headers.forEach { req.setValue($1, forHTTPHeaderField: $0) }
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300
+        config.timeoutIntervalForResource = 60 * 45
+        let longSession = URLSession(configuration: config)
+        let (_, response) = try await longSession.upload(for: req, fromFile: fileURL)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            throw InkAPIError.server("Yükleme başarısız (\(status))")
+        }
+    }
+
     /// Süresi dolmak üzereyse önce yenilenen, geçerli erişim anahtarı.
     func validAccessToken() async throws -> String {
         guard let token = KeychainTokenStore.accessToken() else { throw InkAPIError.unauthorized }

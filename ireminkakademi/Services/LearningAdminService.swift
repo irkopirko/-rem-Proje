@@ -86,4 +86,29 @@ struct LearningAdminService {
     func deleteVideo(id: String) async throws {
         let _: OK = try await api.request("/v1/crew/videos/\(id)", method: "DELETE", authorized: true)
     }
+
+    func fetchGuide() async throws -> GuideDTO {
+        try await api.request("/v1/crew/guide", authorized: true)
+    }
+
+    func beginGuideUpload() async throws -> GuideUploadTarget {
+        let resp: GuideUploadSession = try await api.request("/v1/crew/guide/upload-session", method: "POST", authorized: true)
+        return resp.upload
+    }
+
+    func confirmGuideUpload(key: String) async throws -> GuideDTO {
+        struct Body: Encodable { let key: String }
+        return try await api.request("/v1/crew/guide/confirm", method: "POST", body: Body(key: key), authorized: true)
+    }
+
+    func uploadGuidePDF(fileURL: URL) async throws -> GuideDTO {
+        let target = try await beginGuideUpload()
+        guard let putURL = URL(string: target.url) else { throw InkAPIError.invalidURL }
+        let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        if size > target.maxBytes {
+            throw InkAPIError.server("PDF \(target.maxBytes / 1_048_576) MB sınırını aşıyor.")
+        }
+        try await api.putFile(to: putURL, fileURL: fileURL, headers: target.headers)
+        return try await confirmGuideUpload(key: target.key)
+    }
 }

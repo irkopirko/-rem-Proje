@@ -13,6 +13,14 @@ enum AcademyRank: String, Codable, Sendable {
         }
     }
 
+    var starCount: Int {
+        switch self {
+        case .cirak: return 1
+        case .kalfa: return 2
+        case .usta: return 3
+        }
+    }
+
     static func forLevel(_ level: Int) -> AcademyRank {
         if level >= 20 { return .usta }
         if level >= 10 { return .kalfa }

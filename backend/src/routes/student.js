@@ -6,6 +6,7 @@ import { attachImages } from '../services/contentImages.js';
 import { isStreamConfigured, streamPlaybackUrl } from '../services/bunny.js';
 import { videoDTO } from '../services/videoCatalog.js';
 import { canSeeHomework, canWatchVideo, studentVideoAccessSql } from '../services/membership.js';
+import { guideForStudent } from '../services/guide.js';
 import { MAX_HOMEWORK_FILE_BYTES, storeHomeworkSubmission } from '../services/homeworkSubmissions.js';
 import {
   evaluateBadges,
@@ -204,9 +205,9 @@ router.post('/game/weekly-complete', requireStudent, async (req, res) => {
   return res.json(await progressFor(req.user.id));
 });
 
-router.get('/guide', async (_req, res) => {
-  const rows = await query(`SELECT content_value FROM app_content WHERE content_key = 'guide_pdf_url'`);
-  return res.json({ pdfUrl: rows[0]?.content_value ?? null });
+router.get('/guide', async (req, res) => {
+  if (!canSeeHomework(req.user)) return res.status(402).json({ error: 'Membership required' });
+  return res.json(await guideForStudent());
 });
 
 export default router;

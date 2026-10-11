@@ -1,8 +1,8 @@
 import Foundation
 
 enum AppLegalConfig {
-    static let privacyPolicyURL = URL(string: "https://inkakademionline.com/gizlilik")!
-    static let termsOfUseURL = URL(string: "https://inkakademionline.com/kosullar")!
+    static let privacyPolicyURL = URL(string: "https://ink-akademi-api-production.up.railway.app/gizlilik")!
+    static let termsOfUseURL = URL(string: "https://ink-akademi-api-production.up.railway.app/kosullar")!
     static let helpCenterURL: URL? = nil
     static let supportEmail = "inkakademidestek@outlook.com"
 

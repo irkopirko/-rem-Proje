@@ -13,6 +13,7 @@ import {
   deleteImagesForOwners,
   storeImage,
 } from '../services/contentImages.js';
+import { beginGuideUpload, confirmGuideUpload, guideForCrew } from '../services/guide.js';
 
 const rawImage = express.raw({ type: () => true, limit: MAX_IMAGE_BYTES });
 
@@ -309,15 +310,22 @@ router.post('/live', async (req, res) => {
   return res.status(201).json({ id });
 });
 
-router.post('/guide', async (req, res) => {
-  const pdfUrl = String(req.body?.pdfUrl || '');
-  if (!pdfUrl) return res.status(400).json({ error: 'pdfUrl required' });
-  await query(
-    `INSERT INTO app_content (content_key, content_value) VALUES ('guide_pdf_url', ?)
-     ON DUPLICATE KEY UPDATE content_value = VALUES(content_value)`,
-    [pdfUrl]
-  );
-  return res.json({ ok: true });
+router.get('/guide', async (_req, res) => {
+  return res.json(await guideForCrew());
+});
+
+router.post('/guide/upload-session', async (_req, res) => {
+  const upload = beginGuideUpload();
+  if (!upload) return res.status(503).json({ error: 'Storage not configured' });
+  return res.json({ upload });
+});
+
+router.post('/guide/confirm', async (req, res) => {
+  try {
+    return res.json(await confirmGuideUpload(String(req.body?.key || '')));
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message || 'Confirm failed' });
+  }
 });
 
 export default router;

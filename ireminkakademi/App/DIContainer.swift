@@ -23,7 +23,7 @@ final class DIContainer {
             self.authService = authService ?? InkAuthService()
         }
         NotificationCenter.default.addObserver(forName: .inkSessionExpired, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.handleSessionExpired() }
+            Task { @MainActor in self?.handleSessionExpired() }
         }
     }
 
@@ -32,14 +32,23 @@ final class DIContainer {
               KeychainTokenStore.accessToken() != nil,
               let live = authService as? InkAuthService else { return }
         do {
-            let user = try await live.fetchMe()
+            let user = try await withThrowingTaskGroup(of: User.self) { group in
+                group.addTask { try await live.fetchMe() }
+                group.addTask {
+                    try await Task.sleep(for: .seconds(8))
+                    throw CancellationError()
+                }
+                guard let first = try await group.next() else { throw CancellationError() }
+                group.cancelAll()
+                return first
+            }
             sessionUser = user
             router.isAuthenticated = true
             router.phase = .auth
         } catch InkAPIError.unauthorized {
             KeychainTokenStore.clear()
         } catch {
-            // Ağ hatasında oturum korunur; kullanıcı bir sonraki açılışta devam eder.
+            // Ağ yavaşsa karşılama ekranı açık kalır; oturum anahtarı durur.
         }
     }
 
