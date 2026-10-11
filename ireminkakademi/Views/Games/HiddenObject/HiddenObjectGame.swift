@@ -43,7 +43,7 @@ struct HiddenObjectGame: View {
                 endOverlay
             }
         }
-        .navigationTitle("Haftalık Oyun")
+        .navigationTitle("Günün Oyunu")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { viewModel.startGame() }
         .onDisappear { viewModel.exitGame() }

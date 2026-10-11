@@ -53,11 +53,22 @@ final class CatalogService {
         if APIConfiguration.usesMockBackend {
             return BadgeProgressResponse(totalXp: 0, level: 0, xpIntoLevel: 0, xpForNextLevel: 100, badges: [])
         }
-        return try await api.request("/v1/badges", authorized: true)
+        let progress: BadgeProgressResponse = try await api.request("/v1/badges", authorized: true)
+        if progress.gamePlayedToday == true { DailyGameStore.markPlayedToday() }
+        BadgeUnlockStore.shared.ingest(progress)
+        return progress
     }
 
     func completeWeeklyGame() async throws -> BadgeProgressResponse {
-        try await api.request("/v1/game/weekly-complete", method: "POST", authorized: true)
+        do {
+            let progress: BadgeProgressResponse = try await api.request("/v1/game/weekly-complete", method: "POST", authorized: true)
+            DailyGameStore.markPlayedToday()
+            BadgeUnlockStore.shared.ingest(progress)
+            return progress
+        } catch InkAPIError.server(let message) where message.localizedCaseInsensitiveContains("bugün") {
+            DailyGameStore.markPlayedToday()
+            return try await fetchBadgeProgress()
+        }
     }
 
     func submitHomework(assignmentId: String, data: Data, contentType: String) async throws {

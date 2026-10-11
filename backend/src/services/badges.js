@@ -8,7 +8,7 @@ export const BADGE_CATALOG = [
   { slug: 'hello-studio', title: 'Merhaba Stüdyo', description: 'Topluluk sohbetine ilk mesajını at.', xp: 75, sort: 3 },
   { slug: 'first-lesson', title: 'İlk Ders', description: 'İlk videonu sonuna kadar izle.', xp: 100, sort: 4 },
   { slug: 'apprentice', title: 'Çırak', description: 'Toplam 5 videoyu tamamla.', xp: 100, sort: 5 },
-  { slug: 'weekly-hunter', title: 'Haftanın Avcısı', description: 'Haftalık gizli nesne oyununu bir kez bitir.', xp: 150, sort: 6 },
+  { slug: 'weekly-hunter', title: 'Haftanın Avcısı', description: 'Gizli nesne oyununu bir kez bitir.', xp: 150, sort: 6 },
   { slug: 'pen-opened', title: 'Kalem Açıldı', description: 'İlk ödevini teslim et.', xp: 150, sort: 7 },
   { slug: 'linework', title: 'Linework', description: 'Bir ödevden 100 alıp geç.', xp: 200, sort: 8 },
   { slug: 'journeyman', title: 'Kalfa', description: 'Toplam 25 videoyu tamamla.', xp: 200, sort: 9 },
@@ -20,7 +20,7 @@ export const BADGE_CATALOG = [
   { slug: 'homework-book', title: 'Ödev Defteri', description: '5 ödevi başarıyla geç.', xp: 400, sort: 15 },
   { slug: 'master-candidate', title: 'Usta Adayı', description: 'Toplam 75 videoyu tamamla.', xp: 500, sort: 16 },
   { slug: 'three-modules', title: 'Üç Modül', description: '3 farklı modülü tamamen bitir.', xp: 500, sort: 17 },
-  { slug: 'game-collection', title: 'Oyun Koleksiyonu', description: 'Haftalık oyunu 4 ayrı hafta tamamla.', xp: 600, sort: 18 },
+  { slug: 'game-collection', title: 'Oyun Koleksiyonu', description: 'Oyunu 4 ayrı günde tamamla.', xp: 600, sort: 18 },
   { slug: 'ink-master', title: 'Mürekkep Ustası', description: '15 ödevi başarıyla geç.', xp: 800, sort: 19 },
   { slug: 'academy-graduate', title: 'Akademi Mezunu', description: 'Tüm yayınlanmış modülleri bitir.', xp: 1000, sort: 20 },
 ];
@@ -44,12 +44,31 @@ export async function recordVideoDay(userId) {
   );
 }
 
+function istanbulDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+}
+
 export async function recordWeeklyGameWin(userId) {
-  await query(
-    `INSERT IGNORE INTO user_game_weeks (user_id, year_week)
-     VALUES (?, YEARWEEK(UTC_TIMESTAMP(), 3))`,
-    [userId]
+  const day = await query(
+    `INSERT IGNORE INTO user_game_days (user_id, play_date) VALUES (?, ?)`,
+    [userId, istanbulDate()]
   );
+  if (day.affectedRows) {
+    await query(
+      `INSERT IGNORE INTO user_game_weeks (user_id, year_week)
+       VALUES (?, YEARWEEK(UTC_TIMESTAMP(), 3))`,
+      [userId]
+    );
+  }
+  return Boolean(day.affectedRows);
+}
+
+export async function playedGameToday(userId) {
+  const [row] = await query(
+    `SELECT 1 AS ok FROM user_game_days WHERE user_id = ? AND play_date = ?`,
+    [userId, istanbulDate()]
+  );
+  return Boolean(row);
 }
 
 function utcDay(value) {
@@ -85,7 +104,7 @@ async function loadStats(userId) {
          (SELECT COUNT(*) FROM homework_assignments WHERE student_id = ? AND status = 'graded_pass') AS passed,
          (SELECT COUNT(*) FROM community_messages WHERE user_id = ? AND deleted_at IS NULL) AS messages,
          (SELECT profile_photo_url FROM users WHERE id = ?) AS photo,
-         (SELECT COUNT(*) FROM user_game_weeks WHERE user_id = ?) AS gameWeeks,
+         (SELECT COUNT(*) FROM user_game_days WHERE user_id = ?) AS gameWeeks,
          (SELECT COUNT(*) FROM (
             SELECT m.id FROM modules m
             JOIN videos v ON v.module_id = m.id AND v.is_published = 1 AND v.status = 'ready'
@@ -183,7 +202,7 @@ export function quietEvaluate(userId) {
 }
 
 export async function progressFor(userId) {
-  await evaluateBadges(userId);
+  const unlocked = await evaluateBadges(userId);
   const [user] = await query(`SELECT xp FROM users WHERE id = ? LIMIT 1`, [userId]);
   const progress = levelFromXp(user?.xp ?? 0);
   const badges = await query(
@@ -194,15 +213,18 @@ export async function progressFor(userId) {
      ORDER BY b.sort_order`,
     [userId]
   );
+  const mapped = badges.map((b) => ({
+    slug: b.slug,
+    title: b.title,
+    description: b.description,
+    xpReward: Number(b.xpReward),
+    imageUrl: b.imageUrl,
+    earnedAt: b.earnedAt ? new Date(b.earnedAt).toISOString() : null,
+  }));
   return {
     ...progress,
-    badges: badges.map((b) => ({
-      slug: b.slug,
-      title: b.title,
-      description: b.description,
-      xpReward: Number(b.xpReward),
-      imageUrl: b.imageUrl,
-      earnedAt: b.earnedAt ? new Date(b.earnedAt).toISOString() : null,
-    })),
+    gamePlayedToday: await playedGameToday(userId),
+    newlyEarned: mapped.filter((b) => unlocked.includes(b.slug)),
+    badges: mapped,
   };
 }

@@ -308,6 +308,7 @@ final class CommunityChatClient {
         Task {
             do {
                 try await sendJSON(["type": "send", "body": message.body, "clientMessageId": message.id])
+                _ = try? await CatalogService().fetchBadgeProgress()
             } catch {
                 if let index = pending.firstIndex(where: { $0.id == message.id }) { pending[index].failed = true }
             }

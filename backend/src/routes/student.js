@@ -141,7 +141,7 @@ router.post('/videos/:id/progress', requireStudent, async (req, res) => {
   if (newlyCompleted) {
     await recordVideoDay(req.user.id);
     await grantXp(req.user.id, XP_PER_VIDEO);
-    quietEvaluate(req.user.id);
+    await evaluateBadges(req.user.id);
   }
   return res.json({ ok: true });
 });
@@ -198,7 +198,7 @@ router.post('/homework/:assignmentId/submit', requireStudent, rawHomeworkFile, a
     req.params.assignmentId,
   ]);
   await grantXp(req.user.id, XP_PER_HOMEWORK_SUBMIT);
-  quietEvaluate(req.user.id);
+  await evaluateBadges(req.user.id);
   return res.json({ ok: true, fileUrl: stored.url });
 });
 
@@ -207,8 +207,11 @@ router.get('/badges', requireStudent, async (req, res) => {
 });
 
 router.post('/game/weekly-complete', requireStudent, async (req, res) => {
-  await recordWeeklyGameWin(req.user.id);
-  await evaluateBadges(req.user.id);
+  const firstToday = await recordWeeklyGameWin(req.user.id);
+  if (!firstToday) {
+    const progress = await progressFor(req.user.id);
+    return res.status(409).json({ error: 'Bugün zaten oynadın.', ...progress });
+  }
   return res.json(await progressFor(req.user.id));
 });
 

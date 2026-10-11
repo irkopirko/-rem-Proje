@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountTabView: View {
     let container: DIContainer
     @State private var confirmLogout = false
+    @State private var appearance = AppearanceSettings.shared
 
     var user: User? { container.sessionUser }
 
@@ -29,6 +30,8 @@ struct AccountTabView: View {
                     InkMockMenuButton(title: "Bize Ulaş") {
                         ContactSupportView()
                     }
+
+                    appearanceCard
 
                     InkMockMenuButton(title: "Gizlilik ve Koşullar") {
                         LegalInfoView()
@@ -69,6 +72,41 @@ struct AccountTabView: View {
                 Button("Vazgeç", role: .cancel) {}
             }
         }
+    }
+
+    private var appearanceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Görünüm")
+                .font(AppTypography.cardTitle())
+                .foregroundStyle(InkMockup.textPrimary)
+            HStack(spacing: 10) {
+                appearanceChip(title: "Aydınlık", isDark: false)
+                appearanceChip(title: "Karanlık", isDark: true)
+            }
+        }
+        .padding(16)
+        .glassChrome(radius: 22)
+    }
+
+    private func appearanceChip(title: String, isDark: Bool) -> some View {
+        Button {
+            appearance.isDark = isDark
+        } label: {
+            Text(title)
+                .font(AppTypography.button(size: 15))
+                .foregroundStyle(appearance.isDark == isDark ? Color.white : InkMockup.textPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
+                .background {
+                    if appearance.isDark == isDark {
+                        Capsule().fill(InkGlass.rose)
+                    } else {
+                        Capsule().fill(InkGlass.surface.opacity(0.5))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(appearance.isDark == isDark ? .isSelected : [])
     }
 
     private var profileSummary: some View {

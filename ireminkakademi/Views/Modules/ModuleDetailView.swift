@@ -31,7 +31,7 @@ struct ModuleDetailView: View {
 
                 if let videos {
                     if videos.isEmpty {
-                        Text("Bu kümede henüz ders yok.")
+                        Text("Bu modülde henüz ders yok.")
                             .font(AppTypography.body())
                             .foregroundStyle(InkMockup.captionColor)
                             .frame(maxWidth: .infinity)

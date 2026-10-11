@@ -43,7 +43,7 @@ struct ModulesListView: View {
                         .buttonStyle(.plain)
                     }
 
-                    InkMockSubheading(text: "Kümeler")
+                    InkMockSubheading(text: "Modüller")
 
                     if let modules = data?.modules {
                         if modules.isEmpty {

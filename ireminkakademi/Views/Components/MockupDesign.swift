@@ -153,6 +153,7 @@ struct InkMockPrimaryButton: View {
     var isLoading = false
     var action: () -> Void
     @Environment(\.inkStudioChrome) private var studio
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -168,7 +169,7 @@ struct InkMockPrimaryButton: View {
             .frame(minHeight: InkMockup.buttonHeight)
             .background {
                 if studio {
-                    glassFill(radius: InkGlass.smallRadius, emphasized: true, reduceTransparency: false)
+                    glassFill(radius: InkGlass.smallRadius, emphasized: true, reduceTransparency: false, colorScheme: colorScheme)
                 } else {
                     RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.black)
                 }
@@ -183,6 +184,7 @@ struct InkMockSecondaryButton: View {
     let title: String
     var action: () -> Void
     @Environment(\.inkStudioChrome) private var studio
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -193,7 +195,7 @@ struct InkMockSecondaryButton: View {
                 .frame(minHeight: InkMockup.buttonHeight)
                 .background {
                     if studio {
-                        glassFill(radius: InkGlass.smallRadius, emphasized: false, reduceTransparency: false)
+                        glassFill(radius: InkGlass.smallRadius, emphasized: false, reduceTransparency: false, colorScheme: colorScheme)
                     } else {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.white.opacity(0.55))

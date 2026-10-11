@@ -230,6 +230,7 @@ struct HomeworkDetailView: View {
         do {
             try await catalog.submitHomework(assignmentId: item.assignmentId, data: picked.data, contentType: picked.contentType)
             submitted = true
+            _ = try? await catalog.fetchBadgeProgress()
             await onSubmitted?()
         } catch {
             errorMessage = AuthErrorMessage.from(error)

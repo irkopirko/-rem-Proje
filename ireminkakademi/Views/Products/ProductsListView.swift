@@ -130,7 +130,7 @@ struct ProductDetailView: View {
                             .frame(maxWidth: .infinity)
                             .frame(minHeight: InkMockup.buttonHeight)
                             .background {
-                                glassFill(radius: InkGlass.smallRadius, emphasized: true, reduceTransparency: false)
+                                glassFill(radius: InkGlass.smallRadius, emphasized: true, reduceTransparency: false, colorScheme: .dark)
                             }
                         }
                         Label("\(ProductLink.storeName(for: url)) üzerinden satın alırsın", systemImage: "lock.fill")

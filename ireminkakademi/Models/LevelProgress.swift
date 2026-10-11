@@ -171,4 +171,6 @@ struct BadgeProgressResponse: Decodable {
     let xpIntoLevel: Int
     let xpForNextLevel: Int
     let badges: [BadgeDTO]
+    var gamePlayedToday: Bool?
+    var newlyEarned: [BadgeDTO]?
 }

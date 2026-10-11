@@ -206,6 +206,7 @@ struct EditableProfileAvatar: View {
                 return
             }
             container.updateSessionUser(try await container.authService.updateProfilePhoto(jpegData: jpeg))
+            _ = try? await CatalogService().fetchBadgeProgress()
         } catch {
             errorMessage = AuthErrorMessage.from(error)
         }

@@ -22,29 +22,42 @@ final class VideoPlaybackModel {
     @ObservationIgnored private var maxPosition = 0
     @ObservationIgnored private var lastReported = -1
     @ObservationIgnored private var completed = false
+    @ObservationIgnored private var didRefreshBadges = false
 
     init(video: VideoDTO, reportsProgress: Bool) {
         self.video = video
         self.reportsProgress = reportsProgress
         self.completed = video.completed == true
+        self.didRefreshBadges = video.completed == true
         player.automaticallyWaitsToMinimizeStalling = true
+        player.audiovisualBackgroundPlaybackPolicy = .automatic
     }
 
     func start() async {
-        guard player.currentItem == nil else { return }
+        guard player.currentItem == nil else {
+            if phase == .ready { player.play() }
+            return
+        }
         phase = .loading
         do {
             let playback = try await catalog.fetchPlayback(videoId: video.id)
             video = playback.video
             guard let url = URL(string: playback.hlsUrl) else { throw InkAPIError.invalidURL }
 
-            let item = AVPlayerItem(asset: AVURLAsset(url: url))
+            let asset = AVURLAsset(url: url, options: [
+                AVURLAssetPreferPreciseDurationAndTimingKey: true,
+            ])
+            let item = AVPlayerItem(asset: asset)
             item.preferredPeakBitRate = 0
             item.preferredMaximumResolution = .zero
-            item.preferredForwardBufferDuration = 0
+            item.preferredForwardBufferDuration = 3
             player.replaceCurrentItem(with: item)
 
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .moviePlayback)
+            try? session.setActive(true)
+
+            try await waitUntilPlayable(item)
 
             let resume = playback.video.lastPositionSeconds ?? 0
             if !completed, resume > 5, playback.video.durationSeconds == 0 || resume < playback.video.durationSeconds - 10 {
@@ -61,6 +74,16 @@ final class VideoPlaybackModel {
         }
     }
 
+    func retry() async {
+        player.replaceCurrentItem(with: nil)
+        if let timeObserver { player.removeTimeObserver(timeObserver) }
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        timeObserver = nil
+        endObserver = nil
+        lastReported = -1
+        await start()
+    }
+
     func stop() {
         report(force: true)
         player.pause()
@@ -68,6 +91,20 @@ final class VideoPlaybackModel {
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         timeObserver = nil
         endObserver = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func waitUntilPlayable(_ item: AVPlayerItem) async throws {
+        let deadline = Date().addingTimeInterval(25)
+        while item.status == .unknown {
+            if Date() > deadline {
+                throw InkAPIError.server("Video yüklenemedi. Biraz sonra tekrar dene.")
+            }
+            try await Task.sleep(for: .milliseconds(150))
+        }
+        if item.status == .failed {
+            throw item.error ?? InkAPIError.server("Video açılamadı.")
+        }
     }
 
     private func observe(_ item: AVPlayerItem) {
@@ -110,14 +147,19 @@ final class VideoPlaybackModel {
         guard force || position != lastReported else { return }
         lastReported = position
         let id = video.id, watched = maxPosition, done = completed
-        Task { try? await catalog.saveProgress(videoId: id, lastPositionSeconds: position, watchedSeconds: watched, completed: done) }
+        Task {
+            try? await catalog.saveProgress(videoId: id, lastPositionSeconds: position, watchedSeconds: watched, completed: done)
+            if done, !didRefreshBadges {
+                didRefreshBadges = true
+                _ = try? await catalog.fetchBadgeProgress()
+            }
+        }
     }
 }
 
 struct VideoPlayerScreen: View {
     let reportsProgress: Bool
     @State private var model: VideoPlaybackModel
-    @Environment(\.dismiss) private var dismiss
 
     init(video: VideoDTO, reportsProgress: Bool) {
         self.reportsProgress = reportsProgress
@@ -125,13 +167,13 @@ struct VideoPlayerScreen: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                playerArea
-                    .aspectRatio(aspectRatio, contentMode: .fit)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.black)
+        VStack(spacing: 0) {
+            playerArea
+                .aspectRatio(aspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .background(Color.black)
 
+            ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ders \(model.video.numberLabel)")
                         .font(AppTypography.monoMedium(size: 12))
@@ -157,8 +199,9 @@ struct VideoPlayerScreen: View {
                     }
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
+                .padding(.top, 16)
+                .padding(.bottom, 24)
             }
-            .padding(.bottom, 24)
         }
         .studentScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
@@ -177,40 +220,32 @@ struct VideoPlayerScreen: View {
         case .loading:
             ZStack {
                 VideoThumbnail(url: model.video.thumbnailURL)
-                ProgressView().tint(.white).controlSize(.large)
+                ProgressView("Video hazırlanıyor…")
+                    .tint(.white)
+                    .foregroundStyle(.white)
+                    .controlSize(.large)
             }
         case .ready:
-            SystemVideoPlayer(player: model.player)
+            VideoPlayer(player: model.player)
         case .failed(let message):
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 30))
                 Text(message)
-                    .font(.system(size: 14))
+                    .font(AppTypography.body(size: 14))
                     .multilineTextAlignment(.center)
+                Button("Tekrar dene") {
+                    Task { await model.retry() }
+                }
+                .font(AppTypography.button())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(InkGlass.rose, in: Capsule())
             }
             .foregroundStyle(.white)
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-}
-
-/// `AVPlayerViewController`: tam ekran, Resim içinde Resim, AirPlay ve hız seçimi.
-private struct SystemVideoPlayer: UIViewControllerRepresentable {
-    let player: AVPlayer
-
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.allowsPictureInPicturePlayback = true
-        controller.canStartPictureInPictureAutomaticallyFromInline = true
-        controller.entersFullScreenWhenPlaybackBegins = false
-        controller.exitsFullScreenWhenPlaybackEnds = true
-        return controller
-    }
-
-    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
-        if controller.player !== player { controller.player = player }
     }
 }

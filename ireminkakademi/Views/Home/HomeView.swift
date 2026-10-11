@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var homework: [HomeworkAssignmentDTO] = []
     @State private var badgeProgress: BadgeProgressResponse?
     @State private var selectedBadge: BadgeDTO?
+    @State private var gamePlayedToday = DailyGameStore.playedToday
 
     var user: User? { container.sessionUser }
 
@@ -80,34 +81,55 @@ struct HomeView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        sectionTitle("Haftalık Oyun")
-                        NavigationLink {
-                            HiddenObjectGame { _ in
-                                Task { await reportWeeklyGame() }
-                            }
-                        } label: {
+                        sectionTitle("Günün Oyunu")
+                        if gamePlayedToday {
                             InkMockCard {
                                 HStack(spacing: 14) {
-                                    Image(systemName: "gamecontroller.fill")
+                                    Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 32))
                                         .foregroundStyle(InkMockup.accentPink)
                                     VStack(alignment: .leading, spacing: 6) {
-                                        Text("Oyuna Başla")
+                                        Text("Bugün oynadın")
                                             .font(AppTypography.cardTitle(size: 19))
                                             .foregroundStyle(InkMockup.textPrimary)
-                                        Text("XP kazanmak için oyna")
+                                        Text("Yarın tekrar gel. Günde bir kez oynanır.")
                                             .font(AppTypography.body())
                                             .foregroundStyle(InkMockup.captionColor)
                                     }
                                     Spacer(minLength: 0)
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(InkMockup.captionColor)
                                 }
                                 .padding(.vertical, 10)
                                 .frame(minHeight: 100)
                             }
+                        } else {
+                            NavigationLink {
+                                HiddenObjectGame { _ in
+                                    Task { await reportWeeklyGame() }
+                                }
+                            } label: {
+                                InkMockCard {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: "gamecontroller.fill")
+                                            .font(.system(size: 32))
+                                            .foregroundStyle(InkMockup.accentPink)
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Oyuna Başla")
+                                                .font(AppTypography.cardTitle(size: 19))
+                                                .foregroundStyle(InkMockup.textPrimary)
+                                            Text("XP kazanmak için oyna. Günde bir kez.")
+                                                .font(AppTypography.body())
+                                                .foregroundStyle(InkMockup.captionColor)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(InkMockup.captionColor)
+                                    }
+                                    .padding(.vertical, 10)
+                                    .frame(minHeight: 100)
+                                }
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     if user?.canSeeHomework == true {
@@ -151,10 +173,13 @@ struct HomeView: View {
             homework = []
         }
         badgeProgress = try? await catalog.fetchBadgeProgress()
+        gamePlayedToday = badgeProgress?.gamePlayedToday == true || DailyGameStore.playedToday
     }
 
     private func reportWeeklyGame() async {
         badgeProgress = try? await catalog.completeWeeklyGame()
+        gamePlayedToday = true
+        DailyGameStore.markPlayedToday()
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -240,7 +265,6 @@ private struct BadgeInfoPopup: View {
             .glassChrome(radius: 24, emphasized: true)
             .padding(.horizontal, 36)
         }
-        .preferredColorScheme(.dark)
     }
 
     private var howToEarn: String {
