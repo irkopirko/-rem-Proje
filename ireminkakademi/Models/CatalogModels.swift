@@ -245,6 +245,8 @@ struct CrewHomeworkDTO: Identifiable, Decodable {
     var dueAt: String? = nil
     var assignedCount: Int? = nil
     var submittedCount: Int? = nil
+    var allowTrial: Bool? = nil
+    var allowPaid: Bool? = nil
     var images: [ProductImageDTO]? = nil
 
     var gallery: [ProductImageDTO] { images ?? [] }
@@ -255,6 +257,8 @@ struct HomeworkDraft: Equatable {
     var explanation: String
     /// ISO 8601, nil → teslim tarihi yok.
     var dueAt: Date?
+    var allowTrial: Bool = false
+    var allowPaid: Bool = true
 }
 
 struct HomeworkListResponse: Decodable {

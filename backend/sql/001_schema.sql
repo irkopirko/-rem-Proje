@@ -200,6 +200,8 @@ CREATE TABLE IF NOT EXISTS homework (
   created_by CHAR(36) NOT NULL,
   due_at DATETIME NULL,
   assign_to_all TINYINT(1) NOT NULL DEFAULT 1,
+  allow_trial TINYINT(1) NOT NULL DEFAULT 0,
+  allow_paid TINYINT(1) NOT NULL DEFAULT 1,
   is_published TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (created_by) REFERENCES users(id)

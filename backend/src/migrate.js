@@ -74,6 +74,8 @@ export async function runMigrations() {
   await addColumnIfMissing(pool, 'videos', 'height', 'INT UNSIGNED NULL AFTER width');
   await addColumnIfMissing(pool, 'videos', 'uploaded_by_user_id', 'CHAR(36) NULL AFTER height');
   await addColumnIfMissing(pool, 'videos', 'allow_trial', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_published');
+  await addColumnIfMissing(pool, 'homework', 'allow_trial', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER assign_to_all');
+  await addColumnIfMissing(pool, 'homework', 'allow_paid', 'TINYINT(1) NOT NULL DEFAULT 1 AFTER allow_trial');
   await addIndexIfMissing(pool, 'videos', 'idx_videos_module_order', 'module_id, sort_order');
   await addIndexIfMissing(pool, 'videos', 'idx_videos_status', 'status');
   console.log('Migration complete.');

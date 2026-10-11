@@ -72,50 +72,15 @@ enum AppShadows {
 // MARK: - Typography helpers
 
 enum AppFont {
-    /// Hero heading – large, bold, tight tracking
-    static func hero(_ size: CGFloat = 30) -> Font {
-        .system(size: size, weight: .bold, design: .default)
-    }
-
-    /// Display heading – editorial style
-    static func display(_ size: CGFloat = 26) -> Font {
-        .system(size: size, weight: .bold, design: .rounded)
-    }
-
-    /// Section title – stronger
-    static func sectionTitle(_ size: CGFloat = 18) -> Font {
-        .system(size: size, weight: .bold)
-    }
-
-    /// Card title
-    static func cardTitle(_ size: CGFloat = 17) -> Font {
-        .system(size: size, weight: .bold)
-    }
-
-    /// Body / description
-    static func body(_ size: CGFloat = 15) -> Font {
-        .system(size: size, weight: .regular)
-    }
-
-    /// Small metadata / caption
-    static func caption(_ size: CGFloat = 13) -> Font {
-        .system(size: size, weight: .medium)
-    }
-
-    /// Tiny label
-    static func micro(_ size: CGFloat = 11) -> Font {
-        .system(size: size, weight: .semibold)
-    }
-
-    /// Eyebrow label
-    static func eyebrow(_ size: CGFloat = 11) -> Font {
-        .system(size: size, weight: .bold)
-    }
-
-    /// Price display
-    static func price(_ size: CGFloat = 32) -> Font {
-        .system(size: size, weight: .heavy, design: .rounded)
-    }
+    static func hero(_ size: CGFloat = 30) -> Font { AppTypography.pageTitle(size: size) }
+    static func display(_ size: CGFloat = 26) -> Font { AppTypography.sectionHeading(size: size) }
+    static func sectionTitle(_ size: CGFloat = 18) -> Font { AppTypography.cardTitle(size: size) }
+    static func cardTitle(_ size: CGFloat = 17) -> Font { AppTypography.cardTitle(size: size) }
+    static func body(_ size: CGFloat = 15) -> Font { AppTypography.body(size: size) }
+    static func caption(_ size: CGFloat = 13) -> Font { AppTypography.caption(size: size) }
+    static func micro(_ size: CGFloat = 11) -> Font { AppTypography.navigationLabel(size: size) }
+    static func eyebrow(_ size: CGFloat = 11) -> Font { AppTypography.mono(size: size) }
+    static func price(_ size: CGFloat = 32) -> Font { AppTypography.displayStat(size: size) }
 }
 
 // MARK: - Button Styles

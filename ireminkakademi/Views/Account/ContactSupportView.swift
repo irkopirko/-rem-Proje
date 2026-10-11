@@ -17,10 +17,10 @@ struct ContactSupportView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Selam!")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(studio ? AppTypography.sectionHeading() : .system(size: 26, weight: .bold))
                         .foregroundStyle(textPrimary)
                     Text("Sana yardımcı olabilmemiz için yaşadığın sorunu aşağı yazarak bize ulaş. <3")
-                        .font(.system(size: 16))
+                        .font(studio ? AppTypography.body(size: 16) : .system(size: 16))
                         .foregroundStyle(caption)
                         .fixedSize(horizontal: false, vertical: true)
                 }

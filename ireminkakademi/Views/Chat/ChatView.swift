@@ -17,7 +17,7 @@ struct ChatView: View {
                 .accessibilityLabel("Geri")
                 Spacer()
                 Text("Topluluk")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(AppTypography.cardTitle(size: 20))
                     .foregroundStyle(InkMockup.textPrimary)
                 Spacer()
                 Color.clear.frame(width: 32, height: 32)
@@ -121,7 +121,7 @@ struct CommunityRoomView: View {
 
     private func banner(_ text: String, systemImage: String, color: Color) -> some View {
         Label(text, systemImage: systemImage)
-            .font(.system(size: 12, weight: .medium))
+            .font(AppTypography.caption(size: 12))
             .foregroundStyle(color)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
@@ -139,7 +139,7 @@ struct CommunityRoomView: View {
                             if client.isLoadingOlder {
                                 ProgressView()
                             } else {
-                                Text("Daha eski mesajlar").font(.system(size: 13, weight: .semibold))
+                                Text("Daha eski mesajlar").font(AppTypography.button(size: 13))
                             }
                         }
                         .buttonStyle(.plain)
@@ -149,7 +149,7 @@ struct CommunityRoomView: View {
 
                     if client.messages.isEmpty, client.pending.isEmpty, client.state == .online {
                         Text("Henüz mesaj yok. İlk mesajı sen yaz!")
-                            .font(.system(size: 14))
+                            .font(AppTypography.body(size: 14))
                             .foregroundStyle(InkMockup.captionColor)
                             .padding(.top, 40)
                     }
@@ -189,7 +189,7 @@ struct CommunityRoomView: View {
                 if !isMe {
                     HStack(spacing: 4) {
                         Text(message.displayName)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(AppTypography.profileLabel(size: 13))
                             .foregroundStyle(message.isStaff ? InkMockup.accentPink : InkMockup.captionColor)
                         if message.isStaff {
                             Image(systemName: "checkmark.seal.fill")
@@ -199,10 +199,10 @@ struct CommunityRoomView: View {
                     }
                 }
                 Text(message.body)
-                    .font(.system(size: 15))
+                    .font(AppTypography.body())
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(isMe ? InkMockup.accentPink : InkMockup.cardFill.opacity(message.isStaff ? 1 : 0.95))
+                    .background(isMe ? InkMockup.accentPink.opacity(0.88) : InkGlass.surface.opacity(0.72))
                     .foregroundStyle(isMe ? .white : InkMockup.textPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
@@ -214,7 +214,7 @@ struct CommunityRoomView: View {
                     .contextMenu { menu(for: message, isMe: isMe) }
                 if let date = message.date {
                     Text(date, format: .dateTime.hour().minute())
-                        .font(.system(size: 10))
+                        .font(AppTypography.mono(size: 10))
                         .foregroundStyle(InkMockup.captionColor)
                 }
             }
@@ -263,10 +263,10 @@ struct CommunityRoomView: View {
             Spacer(minLength: 48)
             VStack(alignment: .trailing, spacing: 3) {
                 Text(message.body)
-                    .font(.system(size: 15))
+                    .font(AppTypography.body())
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.55))
+                    .background(InkGlass.surface.opacity(0.55))
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 if message.failed {
@@ -288,20 +288,19 @@ struct CommunityRoomView: View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField("Topluluğa yaz…", text: $draft, axis: .vertical)
                 .lineLimit(1...5)
-                .font(.system(size: 16))
+                .font(AppTypography.body(size: 16))
                 .focused($inputFocused)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(InkMockup.cardFill)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .glassChrome(radius: 16)
                 .disabled(!client.canSend)
 
             Button {
                 client.send(draft)
                 draft = ""
             } label: {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(canSubmit ? Color.black : Color.black.opacity(0.3))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(canSubmit ? InkMockup.accentPink.opacity(0.85) : InkGlass.surface.opacity(0.45))
                     .frame(width: 46, height: 46)
                     .overlay(Image(systemName: "paperplane.fill").foregroundStyle(.white).font(.system(size: 16)))
             }
@@ -310,11 +309,16 @@ struct CommunityRoomView: View {
         }
         .padding(.horizontal, InkMockup.screenHorizontal)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .overlay(InkGlass.background.opacity(0.45))
+        }
         .overlay(alignment: .topTrailing) {
             if draft.count > client.maxLength - 200 {
                 Text("\(draft.count)/\(client.maxLength)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(AppTypography.mono(size: 11))
                     .foregroundStyle(draft.count > client.maxLength ? Color.inkError : InkMockup.captionColor)
                     .padding(.trailing, InkMockup.screenHorizontal)
                     .offset(y: -16)
@@ -346,7 +350,7 @@ private struct CommunityRulesSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Ink Akademi topluluğuna hoş geldin! Sohbete katılmadan önce kuralları okuyup kabul etmelisin.")
-                        .font(.system(size: 15))
+                        .font(AppTypography.body())
                         .foregroundStyle(.secondary)
                     ForEach(rules, id: \.1) { icon, text in
                         HStack(alignment: .top, spacing: 12) {
@@ -354,7 +358,7 @@ private struct CommunityRulesSheet: View {
                                 .font(.system(size: 18))
                                 .foregroundStyle(InkMockup.accentPink)
                                 .frame(width: 26)
-                            Text(text).font(.system(size: 15))
+                            Text(text).font(AppTypography.body())
                         }
                     }
                     Text("Uygunsuz içeriğe ve kötü niyetli kullanıcılara hiçbir şekilde tolerans gösterilmez.")
@@ -365,7 +369,7 @@ private struct CommunityRulesSheet: View {
             .safeAreaInset(edge: .bottom) {
                 Button(action: onAccept) {
                     Text("Kuralları kabul ediyorum")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(AppTypography.button())
                         .frame(maxWidth: .infinity, minHeight: 52)
                 }
                 .buttonStyle(.borderedProminent)
@@ -373,8 +377,10 @@ private struct CommunityRulesSheet: View {
                 .padding(20)
                 .background(.ultraThinMaterial)
             }
+            .studentScreenBackground()
             .navigationTitle("Topluluk kuralları")
             .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(.dark)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Vazgeç", action: onDecline)

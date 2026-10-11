@@ -13,6 +13,24 @@ export function canSeeHomework(user) {
   return isPaidMember(user);
 }
 
+/** Per-homework audience: trial and paid packages are independent, like video allow_trial. */
+export function canSeeHomeworkItem(user, homework) {
+  if (isStaff(user)) return true;
+  if (isBlockedMembership(user)) return false;
+  const allowTrial = homework?.allow_trial === 1 || homework?.allowTrial === true;
+  const allowPaid = homework?.allow_paid !== 0 && homework?.allowPaid !== false;
+  if (PAID.has(user?.membership_status)) return allowPaid;
+  if (user?.membership_status === 'trial') return allowTrial;
+  return false;
+}
+
+export function studentHomeworkAccessSql(user, alias = 'h') {
+  if (isStaff(user)) return '1=1';
+  if (PAID.has(user?.membership_status)) return `${alias}.allow_paid = 1`;
+  if (user?.membership_status === 'trial') return `${alias}.allow_trial = 1`;
+  return '0=1';
+}
+
 export function isBlockedMembership(user) {
   return !isStaff(user) && BLOCKED.has(user?.membership_status);
 }

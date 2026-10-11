@@ -9,12 +9,11 @@ struct GameTimer: View {
             Image(systemName: "clock.fill")
                 .font(.system(size: 12, weight: .semibold))
             Text(timeText)
-                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                .font(AppTypography.monoMedium(size: 13))
         }
-        .foregroundStyle(Color.inkTextPrimary)
+        .foregroundStyle(InkMockup.textPrimary)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
+        .glassChrome(radius: 16)
     }
 }

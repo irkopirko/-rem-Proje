@@ -63,31 +63,49 @@ const homeworkSchema = z.object({
   title: z.string().trim().min(1).max(255),
   explanation: z.string().trim().min(1).max(10000),
   dueAt: z.string().datetime().nullable().optional(),
+  allowTrial: z.boolean().optional(),
+  allowPaid: z.boolean().optional(),
   // Omitted → every active student (and students who join later) gets the homework.
   studentIds: z.array(z.string().uuid()).min(1).optional(),
 });
 
 router.get('/homework', async (_req, res) => {
   const rows = await query(
-    `SELECT h.id, h.title, h.explanation, h.due_at AS dueAt, h.assign_to_all AS assignToAll, h.created_at AS createdAt,
+    `SELECT h.id, h.title, h.explanation, h.due_at AS dueAt, h.assign_to_all AS assignToAll,
+            h.allow_trial AS allowTrial, h.allow_paid AS allowPaid, h.created_at AS createdAt,
             (SELECT COUNT(*) FROM homework_assignments ha WHERE ha.homework_id = h.id) AS assignedCount,
             (SELECT COUNT(*) FROM homework_assignments ha WHERE ha.homework_id = h.id
                AND ha.status IN ('submitted','grading','graded_pass','graded_revise')) AS submittedCount
      FROM homework h ORDER BY h.created_at DESC`
   );
-  const homework = rows.map((r) => ({ ...r, assignToAll: Boolean(r.assignToAll) }));
+  const homework = rows.map((r) => ({
+    ...r,
+    assignToAll: Boolean(r.assignToAll),
+    allowTrial: Boolean(r.allowTrial),
+    allowPaid: r.allowPaid !== 0,
+  }));
   return res.json({ homework: await attachImages('homework', homework) });
 });
 
 router.post('/homework', async (req, res) => {
   const parsed = homeworkSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { title, explanation, dueAt, studentIds } = parsed.data;
+  const { title, explanation, dueAt, studentIds, allowTrial, allowPaid } = parsed.data;
   const assignToAll = !studentIds;
   const homeworkId = uuidv4();
   await query(
-    `INSERT INTO homework (id, title, explanation, created_by, due_at, assign_to_all) VALUES (?, ?, ?, ?, ?, ?)`,
-    [homeworkId, title, explanation, req.user.id, dueAt ? new Date(dueAt) : null, assignToAll ? 1 : 0]
+    `INSERT INTO homework (id, title, explanation, created_by, due_at, assign_to_all, allow_trial, allow_paid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      homeworkId,
+      title,
+      explanation,
+      req.user.id,
+      dueAt ? new Date(dueAt) : null,
+      assignToAll ? 1 : 0,
+      allowTrial ? 1 : 0,
+      allowPaid === false ? 0 : 1,
+    ]
   );
 
   const targets = assignToAll
@@ -106,14 +124,24 @@ router.post('/homework', async (req, res) => {
 router.patch('/homework/:id', async (req, res) => {
   const parsed = homeworkSchema.omit({ studentIds: true }).partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { title, explanation, dueAt } = parsed.data;
+  const { title, explanation, dueAt, allowTrial, allowPaid } = parsed.data;
   const result = await query(
     `UPDATE homework SET
        title = COALESCE(?, title),
        explanation = COALESCE(?, explanation),
-       due_at = IF(?, ?, due_at)
+       due_at = IF(?, ?, due_at),
+       allow_trial = COALESCE(?, allow_trial),
+       allow_paid = COALESCE(?, allow_paid)
      WHERE id = ?`,
-    [title ?? null, explanation ?? null, dueAt !== undefined ? 1 : 0, dueAt ? new Date(dueAt) : null, req.params.id]
+    [
+      title ?? null,
+      explanation ?? null,
+      dueAt !== undefined ? 1 : 0,
+      dueAt ? new Date(dueAt) : null,
+      allowTrial === undefined ? null : allowTrial ? 1 : 0,
+      allowPaid === undefined ? null : allowPaid ? 1 : 0,
+      req.params.id,
+    ]
   );
   if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
   await auditLog({ actorUserId: req.user.id, action: 'homework.update', targetType: 'homework', targetId: req.params.id, ip: req.ip });

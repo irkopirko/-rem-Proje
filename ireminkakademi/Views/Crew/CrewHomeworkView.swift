@@ -175,6 +175,8 @@ struct CrewHomeworkEditorView: View {
 
     @State private var title = ""
     @State private var explanation = ""
+    @State private var allowTrial = false
+    @State private var allowPaid = true
     @State private var hasDueDate = false
     @State private var dueDate = Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
     @State private var images = CrewImageEditingModel()
@@ -208,6 +210,21 @@ struct CrewHomeworkEditorView: View {
                     footer: "Örnek çalışmalar, referans görseller, şablonlar… İstediğin kadar ekleyebilirsin; ilk görsel kapak olur."
                 ) {
                     CrewImageGrid(model: images)
+                }
+
+                CrewEditorSection(
+                    title: "Kimler görsün?",
+                    footer: "Deneme ve paketler ayrı seçilir. İkisini de kapatırsan yalnızca Crew görür."
+                ) {
+                    VStack(spacing: 0) {
+                        Toggle("Deneme sürümüne dahil et", isOn: $allowTrial)
+                            .padding(14)
+                        Divider().padding(.leading, 14)
+                        Toggle("Satın alma paketlerine dahil et", isOn: $allowPaid)
+                            .padding(14)
+                    }
+                    .tint(.black)
+                    .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 CrewEditorSection(title: "Teslim tarihi") {
@@ -283,6 +300,8 @@ struct CrewHomeworkEditorView: View {
             dueDate = due
         }
         images.existing = existing?.gallery ?? []
+        allowTrial = existing?.allowTrial ?? false
+        allowPaid = existing?.allowPaid ?? true
     }
 
     private func save() async {
@@ -294,7 +313,9 @@ struct CrewHomeworkEditorView: View {
         let draft = HomeworkDraft(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             explanation: explanation.trimmingCharacters(in: .whitespacesAndNewlines),
-            dueAt: hasDueDate ? dueDate : nil
+            dueAt: hasDueDate ? dueDate : nil,
+            allowTrial: allowTrial,
+            allowPaid: allowPaid
         )
         do {
             let homeworkId: String

@@ -93,6 +93,51 @@ struct BadgeDTO: Identifiable, Decodable, Hashable {
     var isEarned: Bool { earnedAt != nil }
     var imageURL: URL? { MediaURL.resolve(imageUrl) }
 
+    var localImageName: String? {
+        guard let hex = hexAssetIndex else { return legacyImageName }
+        let base = String(format: "BadgeHex%02d", hex)
+        return isEarned ? base : base + "Gray"
+    }
+
+    private var hexAssetIndex: Int? {
+        switch slug {
+        case "face-shown": return 1
+        case "first-needle": return 2
+        case "hello-studio": return 3
+        case "first-lesson": return 4
+        case "module-closed": return 5
+        case "weekly-hunter": return 6
+        case "homework-book": return 7
+        case "pen-opened", "stencil": return 8
+        case "linework": return 9
+        case "streak-3": return 10
+        case "three-modules": return 11
+        case "chat-voice": return 12
+        case "revise-master": return 13
+        case "streak-7": return 14
+        case "journeyman": return 15
+        case "apprentice", "golgeleme": return 16
+        case "master-candidate": return 17
+        case "game-collection": return 18
+        case "ink-master": return 19
+        case "academy-graduate": return 20
+        default: return nil
+        }
+    }
+
+    private var legacyImageName: String? {
+        switch slug {
+        case "first-needle": return "BadgeHijyenTemeli"
+        case "first-lesson": return "BadgeIlkDers"
+        case "linework": return "BadgeLinework"
+        case "journeyman": return "BadgeKalfaAdayi"
+        case "master-candidate": return "BadgeUstaYolu"
+        case "stencil", "pen-opened": return "BadgeStencil"
+        case "golgeleme", "apprentice": return "BadgeGolgeleme"
+        default: return nil
+        }
+    }
+
     var symbolName: String {
         switch slug {
         case "first-needle": return "paintbrush.pointed.fill"

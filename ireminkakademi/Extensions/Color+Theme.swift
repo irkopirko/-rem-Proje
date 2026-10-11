@@ -11,36 +11,36 @@ extension Color {
     // MARK: - Core Surfaces
 
     /// Warm parchment background – soft gray aligned with page gradient
-    static let inkBackground       = Color(light: 0xE8E6EB, dark: 0x242228)
+    static let inkBackground       = Color(light: 0xE8E6EB, dark: 0x0B080D)
     /// Card surface – warm ivory / dark elevated surface
-    static let inkSurface          = Color(light: 0xFAF8F3, dark: 0x1E1B18)
+    static let inkSurface          = Color(light: 0xFAF8F3, dark: 0x211820)
     /// Secondary surface – warm beige / dark mid-tone
-    static let inkSurfaceSecondary = Color(light: 0xEDE9E0, dark: 0x262320)
+    static let inkSurfaceSecondary = Color(light: 0xEDE9E0, dark: 0x2A1C26)
     /// Elevated surface – richer warmth / slightly lighter dark
-    static let inkSurfaceElevated  = Color(light: 0xFFF9EF, dark: 0x2A2622)
+    static let inkSurfaceElevated  = Color(light: 0xFFF9EF, dark: 0x2F2030)
     /// Pure white / near-white in dark mode
     static let inkWhite            = Color(light: 0xFFFFFF, dark: 0xFAF8F3)
 
     // MARK: - Text
 
     /// Near-black primary text / off-white in dark mode
-    static let inkTextPrimary   = Color(light: 0x1A1612, dark: 0xF0ECE4)
+    static let inkTextPrimary   = Color(light: 0x1A1612, dark: 0xF7F3F6)
     /// Medium warm-gray secondary text
-    static let inkTextSecondary = Color(light: 0x7A7368, dark: 0x9E968A)
+    static let inkTextSecondary = Color(light: 0x7A7368, dark: 0xADA1AA)
     /// Light tertiary / metadata text
-    static let inkTextTertiary  = Color(light: 0xADA598, dark: 0x6A6358)
+    static let inkTextTertiary  = Color(light: 0xADA598, dark: 0x8A7E86)
 
     // MARK: - Primary Accent (koyu pembe)
 
-    static let inkAccent        = Color(light: 0x8C2A4E, dark: 0xC73B6E)
-    static let inkAccentSoft    = Color(light: 0xF4E4EB, dark: 0x2A1520)
+    static let inkAccent        = Color(light: 0x8C2A4E, dark: 0xC43B70)
+    static let inkAccentSoft    = Color(light: 0xF4E4EB, dark: 0x481B30)
     static let inkAccentMuted   = Color(light: 0xE4C4D0, dark: 0x3A1824)
-    static let inkAccentDeep    = Color(light: 0x6E1F3C, dark: 0x9A2D55)
+    static let inkAccentDeep    = Color(light: 0x6E1F3C, dark: 0x481B30)
 
     // MARK: - Page Gradient (soft gray)
 
-    static let inkGradientTop    = Color(light: 0xECEAEF, dark: 0x2C2A32)
-    static let inkGradientBottom = Color(light: 0xDAD7DF, dark: 0x222028)
+    static let inkGradientTop    = Color(light: 0xECEAEF, dark: 0x211820)
+    static let inkGradientBottom = Color(light: 0xDAD7DF, dark: 0x0B080D)
 
     // MARK: - Teal Accent (Learning / Ink / Modules)
 
@@ -94,9 +94,9 @@ extension Color {
     // MARK: - Borders / Dividers
 
     /// Ultra-subtle warm-gray border
-    static let inkBorder        = Color(light: 0xE2DDD3, dark: 0x2E2A26)
+    static let inkBorder        = Color(light: 0xE2DDD3, dark: 0x3A3036)
     /// Softer divider
-    static let inkDivider       = Color(light: 0xE8E3D9, dark: 0x322E2A)
+    static let inkDivider       = Color(light: 0xE8E3D9, dark: 0x2A2228)
 
     // MARK: - Legacy compile-safety aliases
 

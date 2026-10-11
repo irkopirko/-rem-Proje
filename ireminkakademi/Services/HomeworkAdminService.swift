@@ -34,13 +34,17 @@ final class RemoteHomeworkAdminService: HomeworkAdminServicing {
         let title: String
         let explanation: String
         let dueAt: String?
+        let allowTrial: Bool
+        let allowPaid: Bool
         init(_ draft: HomeworkDraft) {
             title = draft.title
             explanation = draft.explanation
             dueAt = draft.dueAt.map { iso8601.string(from: $0) }
+            allowTrial = draft.allowTrial
+            allowPaid = draft.allowPaid
         }
 
-        private enum CodingKeys: String, CodingKey { case title, explanation, dueAt }
+        private enum CodingKeys: String, CodingKey { case title, explanation, dueAt, allowTrial, allowPaid }
 
         // `dueAt: null` must be sent explicitly so removing the deadline clears it on the server.
         func encode(to encoder: Encoder) throws {
@@ -48,6 +52,8 @@ final class RemoteHomeworkAdminService: HomeworkAdminServicing {
             try container.encode(title, forKey: .title)
             try container.encode(explanation, forKey: .explanation)
             try container.encode(dueAt, forKey: .dueAt)
+            try container.encode(allowTrial, forKey: .allowTrial)
+            try container.encode(allowPaid, forKey: .allowPaid)
         }
     }
 

@@ -133,22 +133,24 @@ struct VideoPlayerScreen: View {
                     .background(Color.black)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Video \(model.video.numberLabel)")
-                        .font(.system(size: 13, weight: .bold))
+                    Text("Ders \(model.video.numberLabel)")
+                        .font(AppTypography.monoMedium(size: 12))
+                        .tracking(1.0)
                         .foregroundStyle(InkMockup.captionColor)
                     Text(model.video.title)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(AppTypography.sectionHeading())
+                        .tracking(AppTypography.tracking(forDisplaySize: 26))
                         .foregroundStyle(InkMockup.textPrimary)
                     HStack(spacing: 8) {
                         Text(model.video.durationLabel)
                         if let quality = model.video.qualityLabel { Text("· \(quality)") }
                     }
-                    .font(.system(size: 13))
+                    .font(AppTypography.mono(size: 12))
                     .foregroundStyle(InkMockup.captionColor)
 
                     if let desc = model.video.description, !desc.isEmpty {
                         Text(desc)
-                            .font(.system(size: 15))
+                            .font(AppTypography.body())
                             .foregroundStyle(InkMockup.textPrimary.opacity(0.85))
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, 6)

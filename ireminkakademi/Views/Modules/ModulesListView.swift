@@ -20,15 +20,19 @@ struct ModulesListView: View {
                                     .font(.system(size: 26))
                                     .foregroundStyle(InkMockup.accentPink)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Canlı Yayın").font(.system(size: 13, weight: .bold)).foregroundStyle(InkMockup.accentPink)
-                                    Text(live.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(InkMockup.textPrimary)
+                                    Text("Canlı Yayın")
+                                        .font(AppTypography.monoMedium(size: 11))
+                                        .tracking(1.0)
+                                        .foregroundStyle(InkMockup.accentPink)
+                                    Text(live.title)
+                                        .font(AppTypography.cardTitle())
+                                        .foregroundStyle(InkMockup.textPrimary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
                             }
                             .padding(16)
-                            .background(InkMockup.cardFill.opacity(0.95))
-                            .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+                            .glassChrome()
                         }
                     }
 
@@ -39,7 +43,7 @@ struct ModulesListView: View {
                         .buttonStyle(.plain)
                     }
 
-                    InkMockSubheading(text: "Modüller")
+                    InkMockSubheading(text: "Kümeler")
 
                     if let modules = data?.modules {
                         if modules.isEmpty {
@@ -87,7 +91,7 @@ struct ModulesListView: View {
 
     private func emptyState(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 15))
+            .font(AppTypography.body())
             .foregroundStyle(InkMockup.captionColor)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 32)
@@ -101,17 +105,18 @@ private struct ModuleCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 Text(module.numberLabel)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(AppTypography.monoMedium(size: 13))
+                    .tracking(0.8)
                     .foregroundStyle(InkMockup.textPrimary)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.inkAccentSoft))
+                    .background(Circle().fill(InkGlass.burgundy.opacity(0.7)))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(module.title)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(AppTypography.cardTitle())
                         .foregroundStyle(InkMockup.textPrimary)
                         .multilineTextAlignment(.leading)
                     Text(subtitle)
-                        .font(.system(size: 13))
+                        .font(AppTypography.caption())
                         .foregroundStyle(InkMockup.captionColor)
                 }
                 Spacer(minLength: 0)
@@ -120,7 +125,7 @@ private struct ModuleCard: View {
 
             if let desc = module.description, !desc.isEmpty {
                 Text(desc)
-                    .font(.system(size: 14))
+                    .font(AppTypography.body(size: 14))
                     .foregroundStyle(InkMockup.captionColor)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -132,13 +137,12 @@ private struct ModuleCard: View {
             }
         }
         .padding(16)
-        .background(InkMockup.cardFill.opacity(0.95))
-        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+        .glassChrome()
     }
 
     private var subtitle: String {
         guard module.videoCount > 0 else { return "Yakında" }
-        return "\(module.videoCount) video · \(module.completedCount) tamamlandı"
+        return "\(module.videoCount) ders · \(module.completedCount) tamamlandı"
     }
 }
 
@@ -151,22 +155,22 @@ private struct ContinueWatchingCard: View {
                 .frame(width: 120, height: 68)
                 .overlay(Image(systemName: "play.fill").font(.system(size: 20)).foregroundStyle(.white))
             VStack(alignment: .leading, spacing: 4) {
-                Text("Sıradaki video")
-                    .font(.system(size: 12, weight: .bold))
+                Text("Sıradaki ders")
+                    .font(AppTypography.monoMedium(size: 11))
+                    .tracking(1.0)
                     .foregroundStyle(InkMockup.accentPink)
                 Text(video.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(AppTypography.cardTitle(size: 17))
                     .foregroundStyle(InkMockup.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text(video.durationLabel)
-                    .font(.system(size: 12))
+                    .font(AppTypography.mono(size: 11))
                     .foregroundStyle(InkMockup.captionColor)
             }
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(InkMockup.cardFill.opacity(0.95))
-        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+        .glassChrome()
     }
 }

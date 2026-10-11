@@ -42,13 +42,20 @@ export async function syncVideoFromBunny(row) {
   return { ...row, status, duration_seconds: duration, width: remote.width || null, height: remote.height || null };
 }
 
-/** Webhooks can be missed; lazily re-check videos stuck in processing for more than a minute. */
-export async function refreshStaleProcessing(rows, limit = 10) {
+/** Webhooks can be missed; re-check any video that is not yet ready. */
+export async function refreshStaleProcessing(rows, limit = 15) {
   const stale = rows
-    .filter((r) => r.status === 'processing' && Date.now() - new Date(r.updated_at).getTime() > 60_000)
+    .filter((r) => r.bunny_video_id && r.status !== 'ready' && r.status !== 'failed')
     .slice(0, limit);
   if (!stale.length) return rows;
   const updated = await Promise.all(stale.map((r) => syncVideoFromBunny(r).catch(() => r)));
   const byId = Object.fromEntries(updated.map((r) => [r.id, r]));
   return rows.map((r) => byId[r.id] ?? r);
+}
+
+export async function ensurePlayable(row) {
+  if (!row) return row;
+  if (row.status === 'ready' && row.bunny_video_id) return row;
+  if (!row.bunny_video_id) return row;
+  return syncVideoFromBunny(row).catch(() => row);
 }

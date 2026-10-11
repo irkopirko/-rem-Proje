@@ -20,7 +20,7 @@ struct GuidePDFScreen: View {
                         .font(.system(size: 36))
                         .foregroundStyle(InkMockup.accentPink)
                     Text(errorMessage ?? "Rehber henüz yüklenmedi.")
-                        .font(.system(size: 15))
+                        .font(AppTypography.body())
                         .foregroundStyle(InkMockup.captionColor)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)

@@ -16,15 +16,14 @@ struct GameScore: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.inkAccent)
             Text("\(score)")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.inkTextPrimary)
+                .font(AppTypography.displayStat(size: 20))
+                .foregroundStyle(InkMockup.textPrimary)
             Text("/ \(maxScore)")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(Color.inkTextSecondary)
+                .font(AppTypography.mono(size: 11))
+                .foregroundStyle(InkMockup.captionColor)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
+        .glassChrome(radius: 16)
     }
 }

@@ -6,6 +6,7 @@ struct IremInkAkademiApp: App {
 
     init() {
         URLCache.shared = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: 64 * 1024 * 1024)
+        AppFontRegistry.registerIfNeeded()
     }
 
     var body: some Scene {

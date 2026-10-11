@@ -72,18 +72,19 @@ struct HiddenObjectGame: View {
                     .foregroundStyle(viewModel.phase == .won ? Color.inkSage : Color.inkWarning)
 
                 Text(viewModel.phase == .won ? "Congratulations!" : "Time's Up!")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(Color.inkTextPrimary)
+                    .font(AppTypography.sectionHeading())
+                    .foregroundStyle(InkMockup.textPrimary)
 
                 Text(viewModel.phase == .won ? "You found all hidden objects." : "Try Again.")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.inkTextSecondary)
+                    .font(AppTypography.body())
+                    .foregroundStyle(InkMockup.captionColor)
                     .multilineTextAlignment(.center)
 
                 if viewModel.phase == .won {
                     Text("Score: \(viewModel.score) / \(viewModel.config.maxScore)")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(Color.inkAccent)
+                        .font(AppTypography.monoMedium(size: 13))
+                        .tracking(1.0)
+                        .foregroundStyle(InkMockup.accentPink)
                 }
 
                 VStack(spacing: 10) {
@@ -102,9 +103,7 @@ struct HiddenObjectGame: View {
             }
             .padding(24)
             .frame(maxWidth: 320)
-            .background(Color.inkSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+            .glassChrome(radius: 24, emphasized: true)
         }
     }
 }

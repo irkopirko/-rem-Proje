@@ -35,7 +35,7 @@ struct AccountTabView: View {
                     }
 
                     Button("Çıkış Yap") { confirmLogout = true }
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(AppTypography.button(size: 15))
                         .foregroundStyle(Color.inkError)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 20)
@@ -44,14 +44,14 @@ struct AccountTabView: View {
                         DeleteAccountView(container: container)
                     } label: {
                         Text("Hesabımı Sil")
-                            .font(.system(size: 13))
+                            .font(AppTypography.caption())
                             .underline()
                             .foregroundStyle(InkMockup.captionColor)
                             .frame(maxWidth: .infinity)
                     }
 
                     Text(AppLegalConfig.appVersionText)
-                        .font(.system(size: 11))
+                        .font(AppTypography.mono(size: 11))
                         .foregroundStyle(InkMockup.captionColor)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 8)
@@ -76,16 +76,17 @@ struct AccountTabView: View {
             EditableProfileAvatar(container: container, size: 84)
             VStack(alignment: .leading, spacing: 3) {
                 Text(user?.displayName ?? "")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(AppTypography.cardTitle(size: 20))
                     .foregroundStyle(InkMockup.textPrimary)
                 if let username = user?.username {
                     Text("@\(username)")
-                        .font(.system(size: 14))
+                        .font(AppTypography.profileLabel())
                         .foregroundStyle(InkMockup.captionColor)
                 }
                 if let status = user?.membershipStatus {
                     Text(status.displayName)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTypography.monoMedium(size: 11))
+                        .tracking(0.8)
                         .foregroundStyle(InkMockup.accentPink)
                 }
             }
@@ -109,7 +110,7 @@ struct PersonalInfoView: View {
                 InkReadOnlyField(title: "E-mail", value: user?.email)
 
                 Text("Bu bilgiler güvenliğin için değiştirilemez. Bir yanlışlık varsa \"Bize Ulaş\" üzerinden bize yazabilirsin.")
-                    .font(.system(size: 12))
+                    .font(AppTypography.caption(size: 12))
                     .foregroundStyle(InkMockup.captionColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -129,11 +130,11 @@ struct InkReadOnlyField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 13, weight: .medium))
+                .font(AppTypography.profileLabel(size: 13))
                 .foregroundStyle(InkMockup.captionColor)
             HStack {
                 Text(value ?? "—")
-                    .font(.system(size: 16))
+                    .font(AppTypography.body(size: 16))
                     .foregroundStyle(InkMockup.textPrimary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -144,12 +145,7 @@ struct InkReadOnlyField: View {
             }
             .padding(.horizontal, 16)
             .frame(height: InkMockup.fieldHeight)
-            .background(InkMockup.fieldFill.opacity(0.7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(InkMockup.fieldBorder, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .glassChrome(radius: 16)
         }
         .accessibilityElement(children: .combine)
         .accessibilityHint("Değiştirilemez")
@@ -164,7 +160,7 @@ struct MembershipInfoView: View {
             VStack(alignment: .leading, spacing: 14) {
                 InkReadOnlyField(title: "Üyelik türü", value: user?.membershipStatus.displayName)
                 Text(description)
-                    .font(.system(size: 14))
+                    .font(AppTypography.body(size: 14))
                     .foregroundStyle(InkMockup.captionColor)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -214,24 +210,24 @@ struct DeleteAccountView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Hesabını silmek üzeresin")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(AppTypography.sectionHeading())
                     .foregroundStyle(InkMockup.textPrimary)
                 Text("Hesabını sildiğinde eğitim ilerlemen, rozetlerin, ödevlerin ve mesajların kalıcı olarak silinir. Bu işlem geri alınamaz.")
-                    .font(.system(size: 14))
+                    .font(AppTypography.body(size: 14))
                     .foregroundStyle(InkMockup.captionColor)
                     .fixedSize(horizontal: false, vertical: true)
 
                 InkMockTextField(placeholder: "Şifren", text: $password, isSecure: true, textContentType: .password)
 
                 if let errorMessage {
-                    Text(errorMessage).font(.system(size: 13)).foregroundStyle(Color.inkError)
+                    Text(errorMessage).font(AppTypography.caption()).foregroundStyle(Color.inkError)
                 }
 
                 Button {
                     confirm = true
                 } label: {
                     Text(isLoading ? "Siliniyor…" : "Hesabımı Kalıcı Olarak Sil")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(AppTypography.button())
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: InkMockup.buttonHeight)

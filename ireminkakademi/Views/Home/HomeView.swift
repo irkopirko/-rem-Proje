@@ -30,12 +30,12 @@ struct HomeView: View {
                                         .foregroundStyle(InkMockup.accentPink)
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text(data?.nextVideo?.title ?? "Yeni videolar yakında")
-                                            .font(.system(size: 18, weight: .semibold))
+                                            .font(AppTypography.cardTitle())
                                             .foregroundStyle(InkMockup.textPrimary)
                                             .multilineTextAlignment(.leading)
                                         if user?.canSeeHomework == true {
                                             Text(homework.first?.title ?? "Bekleyen ödevin yok")
-                                                .font(.system(size: 15))
+                                                .font(AppTypography.body())
                                                 .foregroundStyle(InkMockup.captionColor)
                                         }
                                     }
@@ -59,26 +59,13 @@ struct HomeView: View {
                                 ForEach(badgeProgress?.badges ?? []) { badge in
                                     Button { selectedBadge = badge } label: {
                                         VStack(spacing: 8) {
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .fill(InkMockup.cardFill)
+                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                .fill(.clear)
                                                 .frame(width: 92, height: 92)
-                                                .overlay {
-                                                    if let url = badge.imageURL {
-                                                        AsyncImage(url: url) { image in
-                                                            image.resizable().scaledToFit().padding(10)
-                                                        } placeholder: {
-                                                            Image(systemName: badge.symbolName)
-                                                                .font(.system(size: 30))
-                                                        }
-                                                    } else {
-                                                        Image(systemName: badge.symbolName)
-                                                            .font(.system(size: 30))
-                                                    }
-                                                }
-                                                .foregroundStyle(badge.isEarned ? InkMockup.accentPink : InkMockup.placeholderColor)
-                                                .opacity(badge.isEarned ? 1 : 0.45)
+                                                .overlay { BadgeGlyph(badge: badge, size: 30) }
+                                                .glassChrome(radius: 18)
                                             Text(badge.title)
-                                                .font(.system(size: 12, weight: .medium))
+                                                .font(AppTypography.caption(size: 12))
                                                 .foregroundStyle(InkMockup.captionColor)
                                                 .lineLimit(2)
                                                 .multilineTextAlignment(.center)
@@ -106,10 +93,10 @@ struct HomeView: View {
                                         .foregroundStyle(InkMockup.accentPink)
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("Oyuna Başla")
-                                            .font(.system(size: 19, weight: .bold))
+                                            .font(AppTypography.cardTitle(size: 19))
                                             .foregroundStyle(InkMockup.textPrimary)
                                         Text("XP kazanmak için oyna")
-                                            .font(.system(size: 15))
+                                            .font(AppTypography.body())
                                             .foregroundStyle(InkMockup.captionColor)
                                     }
                                     Spacer(minLength: 0)
@@ -129,15 +116,14 @@ struct HomeView: View {
                         } label: {
                             HStack {
                                 Text("INK AKADEMI Rehberin")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(AppTypography.cardTitle(size: 17))
                                 Spacer()
                                 Image(systemName: "chevron.right")
                             }
-                            .foregroundStyle(InkMockup.accentPink)
+                            .foregroundStyle(InkMockup.textPrimary)
                             .padding(.horizontal, 18)
                             .frame(minHeight: 60)
-                            .background(InkMockup.cardFill.opacity(0.7))
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .glassChrome(radius: 18, emphasized: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -173,7 +159,8 @@ struct HomeView: View {
 
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 20, weight: .bold))
+            .font(AppTypography.sectionHeading(size: 24))
+            .tracking(AppTypography.tracking(forDisplaySize: 24))
             .foregroundStyle(InkMockup.textPrimary)
     }
 
@@ -189,14 +176,16 @@ struct HomeView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Hoş geldin, \(user?.firstName ?? "user_name")")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(AppTypography.cardTitle(size: 20))
                     .foregroundStyle(InkMockup.textPrimary)
                 Text((badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.caption ?? "Seviye 0  ·  0 XP")
-                    .font(.system(size: 13))
+                    .font(AppTypography.mono(size: 12))
+                    .tracking(1.0)
                     .foregroundStyle(InkMockup.captionColor)
                 if let next = badgeProgress.map({ LevelMath.from(xp: $0.totalXp) }) ?? user?.levelProgress {
                     Text(next.nextCaption)
-                        .font(.system(size: 11))
+                        .font(AppTypography.mono(size: 11))
+                        .tracking(0.8)
                         .foregroundStyle(InkMockup.placeholderColor)
                 }
             }
@@ -225,41 +214,30 @@ private struct BadgeInfoPopup: View {
                 .onTapGesture(perform: onDismiss)
 
             VStack(spacing: 14) {
-                Image(systemName: badge.symbolName)
-                    .font(.system(size: 34))
-                    .foregroundStyle(badge.isEarned ? InkMockup.accentPink : InkMockup.placeholderColor)
+                BadgeGlyph(badge: badge, size: 34)
                     .frame(width: 72, height: 72)
-                    .background(InkMockup.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .glassChrome(radius: 16)
 
                 Text(badge.title)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(AppTypography.cardTitle())
                     .foregroundStyle(InkMockup.textPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(howToEarn)
-                    .font(.system(size: 14))
+                    .font(AppTypography.body(size: 14))
                     .foregroundStyle(InkMockup.captionColor)
                     .multilineTextAlignment(.center)
 
                 Text("+\(badge.xpReward) XP · \(badge.isEarned ? "Kazanıldı" : "Henüz kazanılmadı")")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(AppTypography.monoMedium(size: 12))
+                    .tracking(1.1)
                     .foregroundStyle(InkMockup.accentPink)
 
-                Button("Tamam", action: onDismiss)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
-                    .background(InkMockup.accentPink, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                GlassButton(title: "Tamam", action: onDismiss)
             }
             .padding(22)
             .frame(maxWidth: 320)
-            .background(Color(red: 0.12, green: 0.08, blue: 0.11))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(InkMockup.accentPink.opacity(0.28), lineWidth: 1)
-            )
+            .glassChrome(radius: 24, emphasized: true)
             .padding(.horizontal, 36)
         }
         .preferredColorScheme(.dark)
@@ -268,5 +246,30 @@ private struct BadgeInfoPopup: View {
     private var howToEarn: String {
         let text = badge.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return text.isEmpty ? "Bu rozeti tamamlayınca kazanırsın." : text
+    }
+}
+
+struct BadgeGlyph: View {
+    let badge: BadgeDTO
+    var size: CGFloat = 30
+
+    var body: some View {
+        if let url = badge.imageURL {
+            AsyncImage(url: url) { image in
+                image.resizable().scaledToFit().padding(8)
+            } placeholder: {
+                fallback
+            }
+        } else if let name = badge.localImageName {
+            Image(name).resizable().scaledToFit().padding(6)
+        } else {
+            fallback
+        }
+    }
+
+    private var fallback: some View {
+        Image(systemName: badge.symbolName)
+            .font(.system(size: size))
+            .foregroundStyle(badge.isEarned ? InkMockup.accentPink : InkMockup.placeholderColor)
     }
 }

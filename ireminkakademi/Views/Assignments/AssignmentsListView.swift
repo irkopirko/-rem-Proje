@@ -20,15 +20,26 @@ struct AssignmentsListView: View {
         items.filter { $0.status == "graded_pass" }
     }
 
-    private var canSeeHomework: Bool { container.sessionUser?.canSeeHomework == true }
-
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     InkMockSectionTitle(text: "Ödevler")
 
-                    if canSeeHomework {
+                    if items.isEmpty {
+                        InkMockCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Gösterilecek ödev yok")
+                                    .font(AppTypography.cardTitle())
+                                    .foregroundStyle(InkMockup.textPrimary)
+                                Text("Crew senin üyelik sürümüne açık bir ödev yayınladığında burada görünür.")
+                                    .font(AppTypography.body(size: 14))
+                                    .foregroundStyle(InkMockup.captionColor)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                        }
+                    } else {
                         sectionHeader("Tamamlanmamış Ödevler")
                         homeworkSection(incomplete)
 
@@ -37,19 +48,6 @@ struct AssignmentsListView: View {
 
                         sectionHeader("Tamamlanmış Ödevler")
                         homeworkSection(completed, showStatus: true)
-                    } else {
-                        InkMockCard {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Ödevler abonelere açık")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(InkMockup.textPrimary)
-                                Text("Deneme sürümünde ödevler görünmez. Light, Plus veya Life Plus üyeliğin olduğunda buradan teslim edebilirsin.")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(InkMockup.captionColor)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                        }
                     }
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
@@ -59,7 +57,6 @@ struct AssignmentsListView: View {
             .studentScreenBackground()
             .navigationBarHidden(true)
             .task {
-                guard canSeeHomework else { items = []; return }
                 items = (try? await catalog.fetchHomework()) ?? []
             }
         }
@@ -67,8 +64,8 @@ struct AssignmentsListView: View {
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(Color.inkTextPrimary)
+            .font(AppTypography.subheading(size: 16))
+            .foregroundStyle(InkMockup.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -127,13 +124,13 @@ struct HomeworkDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text(item.title)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(AppTypography.sectionHeading())
                     .foregroundStyle(InkMockup.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let due = HomeworkDateFormat.display(item.dueAt) {
                     Label("Son teslim: \(due)", systemImage: "calendar")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(AppTypography.mono(size: 12))
                         .foregroundStyle(InkMockup.captionColor)
                 }
 
@@ -142,7 +139,7 @@ struct HomeworkDetailView: View {
                 }
 
                 Text(item.explanation)
-                    .font(.system(size: 15))
+                    .font(AppTypography.body())
                     .foregroundStyle(InkMockup.captionColor)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -162,10 +159,10 @@ struct HomeworkDetailView: View {
                     Button { showSourcePicker = true } label: {
                         VStack(spacing: 8) {
                             Text("Dosya")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppTypography.cardTitle(size: 17))
                                 .foregroundStyle(InkMockup.textPrimary)
                             Text(picked?.name ?? "PNG, JPEG, JPG, PDF")
-                                .font(.system(size: 13))
+                                .font(AppTypography.caption())
                                 .foregroundStyle(InkMockup.captionColor)
                                 .multilineTextAlignment(.center)
                         }

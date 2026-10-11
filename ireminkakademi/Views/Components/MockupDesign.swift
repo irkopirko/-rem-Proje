@@ -7,19 +7,18 @@ enum InkMockup {
     static let screenHorizontal: CGFloat = 28
     static let fieldHeight: CGFloat = 52
     static let buttonHeight: CGFloat = 52
-    static let cardRadius: CGFloat = 14
+    static let cardRadius: CGFloat = 24
     /// Öğrenci sekmelerinin (Eğitimler, Ödevler, Ürünler, Hesabım) ortak başlık yazısı.
-    static let screenTitleFont = Font.system(size: 32, weight: .heavy)
+    static let screenTitleFont = AppTypography.pageTitle()
 
     /// Öğrenci (giriş sonrası) — koyu stüdyo.
-    static let textPrimary = Color(red: 0.96, green: 0.93, blue: 0.95)
-    static let captionColor = Color(red: 0.76, green: 0.68, blue: 0.72)
-    static let placeholderColor = Color(red: 0.55, green: 0.48, blue: 0.52)
-    static let fieldFill = Color(red: 0.14, green: 0.10, blue: 0.13)
-    static let fieldBorder = Color.white.opacity(0.10)
-    static let cardFill = Color(red: 0.13, green: 0.10, blue: 0.135)
-    /// Koyu pembe vurgu (referanstaki mor yerine).
-    static let accentPink = Color(red: 0.78, green: 0.22, blue: 0.44)
+    static let textPrimary = InkGlass.textPrimary
+    static let captionColor = InkGlass.textSecondary
+    static let placeholderColor = InkGlass.textSecondary.opacity(0.72)
+    static let fieldFill = InkGlass.surface
+    static let fieldBorder = InkGlass.border
+    static let cardFill = InkGlass.surface
+    static let accentPink = InkGlass.rose
 }
 
 /// Giriş / kaydol / bize ulaş — açık mockup paleti, öğrenci temasına karışmaz.
@@ -45,8 +44,9 @@ extension EnvironmentValues {
 struct InkMockSectionTitle: View {
     let text: String
     var body: some View {
-        Text(text.uppercased(with: Locale(identifier: "tr_TR")))
+        Text(AppTypography.turkishUppercased(text))
             .font(InkMockup.screenTitleFont)
+            .tracking(AppTypography.tracking(forDisplaySize: 34, uppercase: true))
             .foregroundStyle(InkMockup.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -61,7 +61,7 @@ struct InkMockSubheading: View {
     @Environment(\.inkStudioChrome) private var studio
     var body: some View {
         Text(text)
-            .font(.system(size: 14, weight: .regular))
+            .font(studio ? AppTypography.body(size: 14) : .system(size: 14, weight: .regular))
             .foregroundStyle(studio ? InkMockup.captionColor : InkAuth.captionColor)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -89,18 +89,18 @@ struct InkMockTextField: View {
         .keyboardType(keyboardType)
         .textInputAutocapitalization(autocapitalization)
         .autocorrectionDisabled(isSecure || keyboardType == .emailAddress)
-        .font(.system(size: 16))
+        .font(studio ? AppTypography.body(size: 16) : .system(size: 16))
         .foregroundStyle(studio ? InkMockup.textPrimary : InkAuth.textPrimary)
         .tint(studio ? InkMockup.accentPink : InkAuth.textPrimary)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .frame(height: InkMockup.fieldHeight)
-        .background(invalid ? Color.inkError.opacity(0.10) : (studio ? InkMockup.fieldFill : InkAuth.fieldFill))
+        .background(invalid ? Color.inkError.opacity(0.10) : (studio ? InkMockup.fieldFill.opacity(0.72) : InkAuth.fieldFill))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(invalid ? Color.inkError : (studio ? InkMockup.fieldBorder : InkAuth.fieldBorder), lineWidth: invalid ? 1.5 : 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(invalid ? Color.inkError : (studio ? InkMockup.fieldBorder : InkAuth.fieldBorder), lineWidth: invalid ? 1.5 : 0.8)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var prompt: Text {
@@ -126,7 +126,7 @@ struct InkMockMenuPicker: View {
         } label: {
             HStack(spacing: 4) {
                 Text(selection.map(label) ?? title)
-                    .font(.system(size: 15))
+                    .font(AppTypography.body(size: 15))
                     .foregroundStyle(selection == nil ? InkMockup.placeholderColor : InkMockup.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -138,12 +138,12 @@ struct InkMockMenuPicker: View {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
             .frame(height: InkMockup.fieldHeight)
-            .background(invalid ? Color.inkError.opacity(0.10) : InkMockup.fieldFill)
+            .background(invalid ? Color.inkError.opacity(0.10) : InkMockup.fieldFill.opacity(0.72))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(invalid ? Color.inkError : InkMockup.fieldBorder, lineWidth: invalid ? 1.5 : 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(invalid ? Color.inkError : InkMockup.fieldBorder, lineWidth: invalid ? 1.5 : 0.8)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
 }
@@ -161,13 +161,18 @@ struct InkMockPrimaryButton: View {
                     ProgressView().tint(.white)
                 }
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(studio ? AppTypography.button() : .system(size: 17, weight: .semibold))
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: InkMockup.buttonHeight)
-            .background(studio ? InkMockup.accentPink : Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .frame(minHeight: InkMockup.buttonHeight)
+            .background {
+                if studio {
+                    glassFill(radius: InkGlass.smallRadius, emphasized: true, reduceTransparency: false)
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.black)
+                }
+            }
         }
         .disabled(isLoading)
     }
@@ -182,16 +187,22 @@ struct InkMockSecondaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 17, weight: .semibold))
+                .font(studio ? AppTypography.button() : .system(size: 17, weight: .semibold))
                 .foregroundStyle(studio ? InkMockup.textPrimary : InkAuth.textPrimary)
                 .frame(maxWidth: .infinity)
-                .frame(height: InkMockup.buttonHeight)
-                .background(studio ? InkMockup.cardFill : Color.white.opacity(0.55))
+                .frame(minHeight: InkMockup.buttonHeight)
+                .background {
+                    if studio {
+                        glassFill(radius: InkGlass.smallRadius, emphasized: false, reduceTransparency: false)
+                    } else {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.white.opacity(0.55))
+                    }
+                }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(studio ? InkMockup.accentPink.opacity(0.7) : Color.black, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: studio ? InkGlass.smallRadius : 12, style: .continuous)
+                        .stroke(studio ? InkMockup.fieldBorder : Color.black, lineWidth: studio ? 0.8 : 1.5)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 }
@@ -199,11 +210,9 @@ struct InkMockSecondaryButton: View {
 struct InkMockCard<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
-        content
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(InkMockup.cardFill.opacity(0.95))
-            .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+        GlassCard(radius: InkMockup.cardRadius, padding: 16) {
+            content
+        }
     }
 }
 
@@ -217,13 +226,12 @@ struct InkMockMenuButton<Destination: View>: View {
             destination()
         } label: {
             Text(title)
-                .font(.system(size: 17, weight: .semibold))
+                .font(AppTypography.cardTitle())
                 .foregroundStyle(InkMockup.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 18)
-                .background(InkMockup.cardFill.opacity(0.98))
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .glassChrome(radius: 22)
         }
         .buttonStyle(.plain)
     }
@@ -237,19 +245,18 @@ struct InkMockHomeworkPill: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(AppTypography.cardTitle(size: 17))
                 .foregroundStyle(InkMockup.textPrimary)
             if let subtitle {
                 Text(subtitle)
-                    .font(.system(size: 12))
+                    .font(AppTypography.caption(size: 12))
                     .foregroundStyle(InkMockup.captionColor)
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(InkMockup.cardFill.opacity(0.98))
-        .clipShape(Capsule())
+        .glassChrome(radius: 18)
     }
 }
 

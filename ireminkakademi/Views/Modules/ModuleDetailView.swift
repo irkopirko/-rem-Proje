@@ -12,17 +12,18 @@ struct ModuleDetailView: View {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center, spacing: 14) {
                     Text(module.numberLabel)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(AppTypography.monoMedium(size: 13))
                         .frame(width: 44, height: 44)
-                        .background(Circle().fill(InkMockup.cardFill))
+                        .background(Circle().fill(InkGlass.burgundy.opacity(0.7)))
                     Text(module.title)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(AppTypography.sectionHeading())
+                        .tracking(AppTypography.tracking(forDisplaySize: 26))
                         .foregroundStyle(InkMockup.textPrimary)
                 }
 
                 if let desc = module.description, !desc.isEmpty {
                     Text(desc)
-                        .font(.system(size: 15))
+                        .font(AppTypography.body())
                         .foregroundStyle(InkMockup.textPrimary.opacity(0.8))
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 4)
@@ -30,8 +31,8 @@ struct ModuleDetailView: View {
 
                 if let videos {
                     if videos.isEmpty {
-                        Text("Bu modüle henüz video eklenmedi.")
-                            .font(.system(size: 15))
+                        Text("Bu kümede henüz ders yok.")
+                            .font(AppTypography.body())
                             .foregroundStyle(InkMockup.captionColor)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 32)
@@ -80,7 +81,7 @@ private struct VideoRow: View {
                 .frame(width: 128, height: 72)
                 .overlay(alignment: .bottomTrailing) {
                     Text(video.durationLabel)
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .font(AppTypography.monoMedium(size: 11))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -100,18 +101,26 @@ private struct VideoRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("Video \(video.numberLabel)")
-                    .font(.system(size: 12, weight: .bold))
+                Text("Ders \(video.numberLabel)")
+                    .font(AppTypography.monoMedium(size: 11))
+                    .tracking(0.8)
                     .foregroundStyle(InkMockup.captionColor)
                 Text(video.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(AppTypography.cardTitle(size: 17))
                     .foregroundStyle(InkMockup.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                if let desc = video.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(AppTypography.body(size: 14))
+                        .foregroundStyle(InkMockup.captionColor)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
                 HStack(spacing: 6) {
                     if let quality = video.qualityLabel {
                         Text(quality)
-                            .font(.system(size: 10, weight: .heavy))
+                            .font(AppTypography.mono(size: 10))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .overlay(RoundedRectangle(cornerRadius: 4).stroke(InkMockup.captionColor, lineWidth: 1))
@@ -119,7 +128,7 @@ private struct VideoRow: View {
                     }
                     if video.completed == true {
                         Label("Tamamlandı", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(AppTypography.caption(size: 11))
                             .foregroundStyle(.green)
                     }
                 }
@@ -127,8 +136,7 @@ private struct VideoRow: View {
             Spacer(minLength: 0)
         }
         .padding(10)
-        .background(InkMockup.cardFill.opacity(0.95))
-        .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+        .glassChrome()
     }
 }
 
