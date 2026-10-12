@@ -33,14 +33,22 @@ final class CommunityFeedService {
         return resp.post
     }
 
-    func uploadMedia(postId: String, data: Data, contentType: String) async throws {
+    func uploadMedia(postId: String, data: Data, contentType: String) async throws -> FeedMediaDTO {
         struct Resp: Decodable { let media: FeedMediaDTO }
-        let _: Resp = try await api.upload("/v1/feed/posts/\(postId)/media", data: data, contentType: contentType)
+        let resp: Resp = try await api.upload("/v1/feed/posts/\(postId)/media", data: data, contentType: contentType)
+        return resp.media
     }
 
-    func uploadMedia(postId: String, fileURL: URL, contentType: String) async throws {
+    func uploadMedia(postId: String, fileURL: URL, contentType: String) async throws -> FeedMediaDTO {
         struct Resp: Decodable { let media: FeedMediaDTO }
-        let _: Resp = try await api.uploadFile("/v1/feed/posts/\(postId)/media", fileURL: fileURL, contentType: contentType)
+        let resp: Resp = try await api.uploadFile("/v1/feed/posts/\(postId)/media", fileURL: fileURL, contentType: contentType)
+        return resp.media
+    }
+
+    func uploadVideoThumbnail(mediaId: String, jpeg: Data) async throws -> FeedMediaDTO {
+        struct Resp: Decodable { let media: FeedMediaDTO }
+        let resp: Resp = try await api.upload("/v1/feed/media/\(mediaId)/thumbnail", data: jpeg, contentType: "image/jpeg")
+        return resp.media
     }
 
     func deletePost(id: String) async throws {

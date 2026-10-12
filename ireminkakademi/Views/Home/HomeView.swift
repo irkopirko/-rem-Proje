@@ -20,11 +20,16 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 12) {
                         sectionTitle("Bugünün Görevi")
-                        NavigationLink {
-                            if let next = data?.nextVideo {
+                        if let next = data?.nextVideo {
+                            NavigationLink {
                                 VideoPlayerScreen(video: next, reportsProgress: user?.role == .student)
+                                    .onAppear { hidesTabBar.wrappedValue = true }
+                                    .onDisappear { Task { await loadHome() } }
+                            } label: {
+                                TodayContinueWatchingCard(video: next)
                             }
-                        } label: {
+                            .buttonStyle(.plain)
+                        } else {
                             InkMockCard {
                                 HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: "play.rectangle.fill")
@@ -32,11 +37,9 @@ struct HomeView: View {
                                         .foregroundStyle(InkMockup.accentPink)
                                         .padding(.top, 1)
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(data?.nextVideo?.title ?? "Yeni videolar yakında")
+                                        Text("Yeni videolar yakında")
                                             .font(AppTypography.cardTitle())
                                             .foregroundStyle(InkMockup.textPrimary)
-                                            .multilineTextAlignment(.leading)
-                                            .fixedSize(horizontal: false, vertical: true)
                                         if user?.canSeeHomework == true {
                                             Text(homework.first?.title ?? "Bekleyen ödevin yok")
                                                 .font(AppTypography.body())
@@ -45,14 +48,9 @@ struct HomeView: View {
                                         }
                                     }
                                     Spacer(minLength: 0)
-                                    if data?.nextVideo != nil {
-                                        Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
-                                    }
                                 }
                             }
                         }
-                        .buttonStyle(.plain)
-                        .disabled(data?.nextVideo == nil)
                     }
 
                     NavigationLink {
@@ -86,7 +84,7 @@ struct HomeView: View {
                             }
                         } else {
                             NavigationLink {
-                                HiddenObjectGame { _ in
+                                HiddenObjectGame(hidesTabBar: hidesTabBar) { _ in
                                     Task { await reportWeeklyGame() }
                                 }
                             } label: {
@@ -119,7 +117,7 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
-                .padding(.bottom, 16)
+                .padding(.bottom, 28)
             }
             .studentScreenBackground()
             .navigationBarHidden(true)
@@ -208,8 +206,110 @@ struct HomeView: View {
                     .resizable()
                     .renderingMode(.original)
                     .scaledToFit()
-                    .frame(width: 30, height: 30)
+                    .frame(width: 52, height: 52)
+            }
+            .frame(width: 56, height: 56)
+            .contentShape(Rectangle())
+            .accessibilityLabel("Sohbet")
+        }
+    }
+}
+
+private struct TodayContinueWatchingCard: View {
+    let video: VideoDTO
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                thumbnail
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.45)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                Image(systemName: "play.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .padding(.leading, 2)
+                    .frame(width: 44, height: 44)
+                    .background(.black.opacity(0.38), in: Circle())
+                VStack {
+                    Spacer()
+                    if video.hasResumeProgress {
+                        progressBar
+                    }
+                }
+            }
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(video.title)
+                    .font(AppTypography.cardTitle(size: 18))
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let contextLabel = video.contextLabel {
+                    Text(contextLabel)
+                        .font(AppTypography.body(size: 14))
+                        .foregroundStyle(InkMockup.captionColor)
+                        .lineLimit(1)
+                }
             }
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassChrome(radius: 22)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var thumbnail: some View {
+        ZStack {
+            Color.black
+            if let url = video.thumbnailURL {
+                AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            InkGlass.burgundy.opacity(0.35)
+            Image(systemName: "play.rectangle.fill")
+                .font(.system(size: 28))
+                .foregroundStyle(.white.opacity(0.45))
+        }
+    }
+
+    private var progressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.black.opacity(0.55))
+                Capsule()
+                    .fill(InkMockup.accentPink)
+                    .frame(width: max(6, geo.size.width * video.progressFraction))
+            }
+        }
+        .frame(height: 3)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 8)
+    }
+
+    private var accessibilityLabel: String {
+        let watched = Int((video.progressFraction * 100).rounded())
+        if video.hasResumeProgress {
+            return "\(video.title), kaldığın yerden devam, yüzde \(watched) izlendi"
+        }
+        return video.title
     }
 }

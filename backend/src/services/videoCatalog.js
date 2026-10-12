@@ -15,7 +15,7 @@ export function videoDTO(row, progress) {
     allowTrial: Boolean(row.allow_trial),
     width: row.width,
     height: row.height,
-    thumbnailUrl: row.bunny_video_id && row.status === 'ready' ? streamThumbnailUrl(row.bunny_video_id) : null,
+    thumbnailUrl: row.bunny_video_id && row.status === 'ready' ? `/media/video-thumbs/${row.id}` : null,
     ...(progress !== undefined
       ? {
           completed: Boolean(progress?.completed),
@@ -51,6 +51,12 @@ export async function refreshStaleProcessing(rows, limit = 15) {
   const updated = await Promise.all(stale.map((r) => syncVideoFromBunny(r).catch(() => r)));
   const byId = Object.fromEntries(updated.map((r) => [r.id, r]));
   return rows.map((r) => byId[r.id] ?? r);
+}
+
+export async function signedVideoThumbUrl(videoId) {
+  const [row] = await query(`SELECT bunny_video_id AS guid, status FROM videos WHERE id = ? LIMIT 1`, [videoId]);
+  if (!row?.guid || row.status !== 'ready') return null;
+  return streamThumbnailUrl(row.guid);
 }
 
 export async function ensurePlayable(row) {

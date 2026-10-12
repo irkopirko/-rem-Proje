@@ -138,10 +138,16 @@ struct CommunityComposeView: View {
             )
             for (index, item) in attachments.enumerated() {
                 progressText = "Medya yükleniyor (\(index + 1)/\(attachments.count))…"
+                let media: FeedMediaDTO
                 if let fileURL = item.fileURL {
-                    try await feed.uploadMedia(postId: created.id, fileURL: fileURL, contentType: item.contentType)
+                    media = try await feed.uploadMedia(postId: created.id, fileURL: fileURL, contentType: item.contentType)
                 } else if let data = item.data {
-                    try await feed.uploadMedia(postId: created.id, data: data, contentType: item.contentType)
+                    media = try await feed.uploadMedia(postId: created.id, data: data, contentType: item.contentType)
+                } else {
+                    continue
+                }
+                if item.isVideo, let jpeg = item.preview?.feedThumbnailJPEG() {
+                    _ = try? await feed.uploadVideoThumbnail(mediaId: media.id, jpeg: jpeg)
                 }
             }
             let fresh = attachments.isEmpty ? created : (try? await feed.post(id: created.id)) ?? created
@@ -195,7 +201,7 @@ struct FeedDraftMedia: Identifiable {
             fileURL: url,
             contentType: "video/mp4",
             isVideo: true,
-            preview: videoPreview(url: url)
+            preview: VideoFrameThumbnail.image(from: url)
         )
     }
 
@@ -215,11 +221,46 @@ struct FeedDraftMedia: Identifiable {
         return dest
     }
 
-    private static func videoPreview(url: URL) -> UIImage? {
+}
+
+enum VideoFrameThumbnail {
+    private static let cache = NSCache<NSURL, UIImage>()
+
+    static func cachedImage(for url: URL) -> UIImage? {
+        cache.object(forKey: url as NSURL)
+    }
+
+    static func image(from url: URL, times: [Double] = [1.0, 0.4, 0.0]) -> UIImage? {
+        if let cached = cache.object(forKey: url as NSURL) { return cached }
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.appliesPreferredTrackTransform = true
-        let time = CMTime(seconds: 0.2, preferredTimescale: 600)
-        guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil }
-        return UIImage(cgImage: cg)
+        generator.maximumSize = CGSize(width: 1280, height: 1280)
+        for seconds in times {
+            let time = CMTime(seconds: seconds, preferredTimescale: 600)
+            if let cg = try? generator.copyCGImage(at: time, actualTime: nil) {
+                let image = UIImage(cgImage: cg)
+                cache.setObject(image, forKey: url as NSURL)
+                return image
+            }
+        }
+        return nil
+    }
+
+    static func load(from url: URL) async -> UIImage? {
+        if let cached = cachedImage(for: url) { return cached }
+        return await Task.detached { image(from: url) }.value
+    }
+}
+
+extension UIImage {
+    func feedThumbnailJPEG(maxSide: CGFloat = 960, quality: CGFloat = 0.72) -> Data? {
+        let longest = max(size.width, size.height)
+        let scale = longest > maxSide ? maxSide / longest : 1
+        let target = CGSize(width: floor(size.width * scale), height: floor(size.height * scale))
+        guard target.width > 0, target.height > 0 else { return jpegData(compressionQuality: quality) }
+        let rendered = UIGraphicsImageRenderer(size: target).image { _ in
+            draw(in: CGRect(origin: .zero, size: target))
+        }
+        return rendered.jpegData(compressionQuality: quality)
     }
 }

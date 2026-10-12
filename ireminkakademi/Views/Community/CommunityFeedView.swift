@@ -53,7 +53,7 @@ struct CommunityFeedView: View {
             }
             .padding(.horizontal, InkMockup.screenHorizontal)
             .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.bottom, 36)
         }
         .studentScreenBackground()
         .navigationTitle("Topluluk")

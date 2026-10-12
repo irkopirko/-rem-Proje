@@ -189,11 +189,13 @@ export function streamEmbedUrl(guid, ttlSeconds = 6 * 3600) {
 export function streamThumbnailUrl(guid) {
   const s = stream();
   if (!s.cdnHost || !guid) return null;
+  const id = String(guid).trim();
   return signBunnyUrl({
     host: s.cdnHost,
-    path: `/${guid}/thumbnail.jpg`,
+    path: `/${id}/thumbnail.jpg`,
     tokenKey: s.tokenKey,
     expires: stableDailyExpiry(),
+    directory: `/${id}/`,
   });
 }
 

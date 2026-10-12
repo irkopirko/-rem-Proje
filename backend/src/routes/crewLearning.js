@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
@@ -14,9 +14,12 @@ import { refreshStaleProcessing, syncVideoFromBunny, videoDTO } from '../service
 import {
   applyDisplayLabels,
   createProgram,
+  deleteProgramCoverFiles,
   ensureAcademyProgram,
+  MAX_PROGRAM_COVER_BYTES,
   nextModuleSort,
   programDTO,
+  storeProgramCover,
 } from '../services/programs.js';
 
 const router = Router();
@@ -27,7 +30,10 @@ const programSchema = z.object({
   description: z.string().trim().max(10000).optional(),
   instructorName: z.string().trim().max(160).optional(),
   isPublished: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(999).optional(),
 });
+
+const rawCover = express.raw({ type: () => true, limit: MAX_PROGRAM_COVER_BYTES });
 
 const moduleSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -87,22 +93,39 @@ router.post('/programs', async (req, res) => {
   return res.status(201).json({ program: created });
 });
 
+router.post('/programs/:id/cover', rawCover, async (req, res) => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Invalid file' });
+  const result = await storeProgramCover(req.params.id, req.body);
+  if (result.status === 200) {
+    await auditLog({
+      actorUserId: req.user.id,
+      action: 'program.cover',
+      targetType: 'education_program',
+      targetId: req.params.id,
+      ip: req.ip,
+    });
+  }
+  return res.status(result.status).json(result.body);
+});
+
 router.patch('/programs/:id', async (req, res) => {
   const parsed = programSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { title, description, instructorName, isPublished } = parsed.data;
+  const { title, description, instructorName, isPublished, sortOrder } = parsed.data;
   const result = await query(
     `UPDATE education_programs SET
        title = COALESCE(?, title),
        description = COALESCE(?, description),
        instructor_name = COALESCE(?, instructor_name),
-       is_published = COALESCE(?, is_published)
+       is_published = COALESCE(?, is_published),
+       sort_order = COALESCE(?, sort_order)
      WHERE id = ?`,
     [
       title ?? null,
       description ?? null,
       instructorName ?? null,
       isPublished === undefined ? null : isPublished ? 1 : 0,
+      sortOrder === undefined ? null : sortOrder,
       req.params.id,
     ]
   );
@@ -127,6 +150,7 @@ router.delete('/programs/:id', async (req, res) => {
   }
   const result = await query(`DELETE FROM education_programs WHERE id = ?`, [req.params.id]);
   if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
+  await deleteProgramCoverFiles(req.params.id);
   await auditLog({
     actorUserId: req.user.id,
     action: 'program.delete',

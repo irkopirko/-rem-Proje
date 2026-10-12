@@ -51,7 +51,9 @@ function studentModuleWhere() {
   return `m.is_published = 1 AND (m.education_program_id IS NULL OR p.is_published = 1)`;
 }
 
-function mapStudentModule(row) {
+function mapStudentModule(row, user) {
+  const videoCount = Number(row.video_count || 0);
+  const accessible = Number(row.accessible_count ?? videoCount);
   return {
     id: row.id,
     educationProgramId: row.education_program_id ?? null,
@@ -59,21 +61,35 @@ function mapStudentModule(row) {
     title: row.title,
     description: row.description,
     sortOrder: Number(row.sort_order || 0),
-    videoCount: Number(row.video_count || 0),
+    videoCount,
     completedCount: Number(row.completed_count || 0),
     displayLabel: row.displayLabel || null,
+    locked: user?.role === 'student' && videoCount > 0 && accessible === 0,
   };
+}
+
+function programStatSelect(user) {
+  return `(SELECT COUNT(*) FROM modules m WHERE m.education_program_id = p.id AND m.is_published = 1) AS moduleCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(user)}) AS videoCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ? AND vp.completed = 1
+              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(user)}) AS completedCount,
+            (SELECT COALESCE(SUM(v.duration_seconds), 0) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(user)}) AS durationSeconds,
+            (SELECT CASE
+                WHEN COUNT(*) = 0 THEN NULL
+                WHEN SUM(v.allow_trial = 1) = COUNT(*) THEN 'Deneme'
+                WHEN SUM(v.allow_trial = 1) = 0 THEN 'Üyelik'
+                ELSE NULL
+              END
+              FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(user)}) AS accessLabel`;
 }
 
 router.get('/programs', async (req, res) => {
   const programs = await query(
-    `SELECT p.*,
-            (SELECT COUNT(*) FROM modules m WHERE m.education_program_id = p.id AND m.is_published = 1) AS moduleCount,
-            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
-              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(req.user)}) AS videoCount,
-            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
-              JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ? AND vp.completed = 1
-              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(req.user)}) AS completedCount
+    `SELECT p.*, ${programStatSelect(req.user)}
      FROM education_programs p
      WHERE p.is_published = 1
      ORDER BY p.sort_order, p.title`,
@@ -85,13 +101,7 @@ router.get('/programs', async (req, res) => {
 
 router.get('/programs/:id', async (req, res) => {
   const [program] = await query(
-    `SELECT p.*,
-            (SELECT COUNT(*) FROM modules m WHERE m.education_program_id = p.id AND m.is_published = 1) AS moduleCount,
-            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
-              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(req.user)}) AS videoCount,
-            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
-              JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ? AND vp.completed = 1
-              WHERE m.education_program_id = p.id AND m.is_published = 1 AND ${catalogVideos(req.user)}) AS completedCount
+    `SELECT p.*, ${programStatSelect(req.user)}
      FROM education_programs p WHERE p.id = ? AND p.is_published = 1 LIMIT 1`,
     [req.user.id, req.params.id]
   );
@@ -100,7 +110,9 @@ router.get('/programs/:id', async (req, res) => {
     `SELECT m.id, m.education_program_id, m.module_number, m.title, m.description, m.sort_order,
             (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id AND ${catalogVideos(req.user)}) AS video_count,
             (SELECT COUNT(*) FROM videos v JOIN video_progress vp ON vp.video_id = v.id
-               WHERE v.module_id = m.id AND ${catalogVideos(req.user)} AND vp.user_id = ? AND vp.completed = 1) AS completed_count
+               WHERE v.module_id = m.id AND ${catalogVideos(req.user)} AND vp.user_id = ? AND vp.completed = 1) AS completed_count,
+            (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id AND ${catalogVideos(req.user)}
+               AND ${studentVideoAccessSql(req.user, 'v')}) AS accessible_count
      FROM modules m
      WHERE m.education_program_id = ? AND m.is_published = 1
      ORDER BY m.sort_order, m.module_number`,
@@ -109,7 +121,7 @@ router.get('/programs/:id', async (req, res) => {
   const labeled = applyDisplayLabels([program], rows);
   return res.json({
     program: programDTO(labeled.programs[0]),
-    modules: labeled.modules.map(mapStudentModule),
+    modules: labeled.modules.map((row) => mapStudentModule(row, req.user)),
   });
 });
 
@@ -130,17 +142,7 @@ router.get('/modules', async (req, res) => {
   const labeled = applyDisplayLabels(programRows, rows);
   const modules = labeled.modules.map(mapStudentModule);
 
-  // "Bugünün görevi": the first playable video the student has not finished yet.
-  const [next] = await query(
-    `SELECT v.* FROM videos v
-     JOIN modules m ON m.id = v.module_id AND m.is_published = 1
-     LEFT JOIN education_programs p ON p.id = m.education_program_id
-     LEFT JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ?
-     WHERE ${playableVideos(req.user)} AND (m.education_program_id IS NULL OR p.is_published = 1)
-       AND (vp.completed IS NULL OR vp.completed = 0)
-     ORDER BY COALESCE(p.sort_order, 999), m.sort_order, m.module_number, v.sort_order, v.video_number LIMIT 1`,
-    [req.user.id]
-  );
+  const next = await pickTodayTaskVideo(req.user);
 
   const live = await query(
     `SELECT id, title, stream_url AS streamUrl, thumbnail_url AS thumbnailUrl, starts_at AS startsAt
@@ -148,8 +150,53 @@ router.get('/modules', async (req, res) => {
        AND (ends_at IS NULL OR ends_at >= UTC_TIMESTAMP())
      ORDER BY starts_at DESC LIMIT 1`
   );
-  return res.json({ modules, nextVideo: next ? videoDTO(next) : null, liveSession: live[0] ?? null });
+  return res.json({ modules, nextVideo: next ? todayTaskVideoDTO(next) : null, liveSession: live[0] ?? null });
 });
+
+const HOME_VIDEO_SELECT = `SELECT v.*, vp.completed, vp.last_position_seconds,
+       m.title AS module_title, p.title AS program_title
+     FROM videos v
+     JOIN modules m ON m.id = v.module_id AND m.is_published = 1
+     LEFT JOIN education_programs p ON p.id = m.education_program_id
+     LEFT JOIN video_progress vp ON vp.video_id = v.id AND vp.user_id = ?`;
+
+const HOME_VIDEO_WHERE = (user) =>
+  `${playableVideos(user)} AND (m.education_program_id IS NULL OR p.is_published = 1)`;
+
+async function pickTodayTaskVideo(user) {
+  const access = HOME_VIDEO_WHERE(user);
+  const [inProgress] = await query(
+    `${HOME_VIDEO_SELECT}
+     WHERE ${access}
+       AND vp.user_id = ?
+       AND (vp.completed IS NULL OR vp.completed = 0)
+       AND vp.last_position_seconds > 5
+     ORDER BY vp.updated_at DESC
+     LIMIT 1`,
+    [user.id, user.id]
+  );
+  if (inProgress) return inProgress;
+  const [next] = await query(
+    `${HOME_VIDEO_SELECT}
+     WHERE ${access}
+       AND (vp.completed IS NULL OR vp.completed = 0)
+     ORDER BY COALESCE(p.sort_order, 999), m.sort_order, m.module_number, v.sort_order, v.video_number
+     LIMIT 1`,
+    [user.id]
+  );
+  return next ?? null;
+}
+
+function todayTaskVideoDTO(row) {
+  const last = Number(row.last_position_seconds || 0);
+  const completed = Boolean(row.completed);
+  return {
+    ...videoDTO(row, row),
+    moduleTitle: row.module_title || null,
+    programTitle: row.program_title || null,
+    isResume: !completed && last > 5,
+  };
+}
 
 router.get('/modules/:id/videos', async (req, res) => {
   let rows = await query(
@@ -206,6 +253,10 @@ router.post('/videos/:id/progress', requireStudent, async (req, res) => {
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+
+  const [video] = await query(`SELECT v.* FROM videos v WHERE v.id = ? LIMIT 1`, [req.params.id]);
+  if (!video) return res.status(404).json({ error: 'Not found' });
+  if (!canWatchVideo(req.user, video)) return res.status(402).json({ error: 'Membership required' });
 
   const [prev] = await query(`SELECT completed FROM video_progress WHERE user_id = ? AND video_id = ?`, [
     req.user.id,

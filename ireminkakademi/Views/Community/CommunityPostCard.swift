@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import UIKit
 
 struct CommunityPostCard: View {
     let post: FeedPostDTO
@@ -134,14 +135,15 @@ struct CommunityMediaStrip: View {
 struct CommunityMediaTile: View {
     let item: FeedMediaDTO
     @State private var player: AVPlayer?
+    @State private var generatedThumb: UIImage?
 
     var body: some View {
         ZStack {
-            if item.isVideo, let url = item.resolvedURL {
+            if item.isVideo {
+                poster
                 if let player {
                     VideoPlayer(player: player)
-                } else {
-                    InkMockup.cardFill
+                } else if let url = item.resolvedURL {
                     Button {
                         let created = AVPlayer(url: url)
                         created.isMuted = true
@@ -151,17 +153,40 @@ struct CommunityMediaTile: View {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 42))
                             .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.35), radius: 8)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Videoyu oynat")
                 }
             } else {
                 ProductImageView(url: item.resolvedURL)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: item.id) {
+            guard item.isVideo, item.thumbnailURL == nil, let url = item.resolvedURL else { return }
+            if let cached = VideoFrameThumbnail.cachedImage(for: url) {
+                generatedThumb = cached
+                return
+            }
+            generatedThumb = await VideoFrameThumbnail.load(from: url)
+        }
         .onDisappear {
             player?.pause()
             player = nil
+        }
+    }
+
+    @ViewBuilder
+    private var poster: some View {
+        if let thumbnailURL = item.thumbnailURL {
+            ProductImageView(url: thumbnailURL)
+        } else if let generatedThumb {
+            Image(uiImage: generatedThumb)
+                .resizable()
+                .scaledToFill()
+        } else {
+            InkMockup.cardFill
         }
     }
 }

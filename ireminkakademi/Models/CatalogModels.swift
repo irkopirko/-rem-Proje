@@ -12,6 +12,8 @@ struct EducationProgramDTO: Identifiable, Decodable, Hashable {
     var moduleCount: Int = 0
     var videoCount: Int = 0
     var completedCount: Int = 0
+    var durationSeconds: Int = 0
+    var accessLabel: String? = nil
     var displayIndex: Int? = nil
 
     var numberLabel: String {
@@ -26,7 +28,7 @@ struct EducationProgramDTO: Identifiable, Decodable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, slug, title, description, instructorName, coverImageUrl, sortOrder, isPublished, moduleCount, videoCount, completedCount, displayIndex
+        case id, slug, title, description, instructorName, coverImageUrl, sortOrder, isPublished, moduleCount, videoCount, completedCount, durationSeconds, accessLabel, displayIndex
     }
 
     init(
@@ -41,6 +43,8 @@ struct EducationProgramDTO: Identifiable, Decodable, Hashable {
         moduleCount: Int = 0,
         videoCount: Int = 0,
         completedCount: Int = 0,
+        durationSeconds: Int = 0,
+        accessLabel: String? = nil,
         displayIndex: Int? = nil
     ) {
         self.id = id
@@ -54,6 +58,8 @@ struct EducationProgramDTO: Identifiable, Decodable, Hashable {
         self.moduleCount = moduleCount
         self.videoCount = videoCount
         self.completedCount = completedCount
+        self.durationSeconds = durationSeconds
+        self.accessLabel = accessLabel
         self.displayIndex = displayIndex
     }
 
@@ -70,7 +76,24 @@ struct EducationProgramDTO: Identifiable, Decodable, Hashable {
         moduleCount = try c.decodeIfPresent(Int.self, forKey: .moduleCount) ?? 0
         videoCount = try c.decodeIfPresent(Int.self, forKey: .videoCount) ?? 0
         completedCount = try c.decodeIfPresent(Int.self, forKey: .completedCount) ?? 0
+        durationSeconds = try c.decodeIfPresent(Int.self, forKey: .durationSeconds) ?? 0
+        accessLabel = try c.decodeIfPresent(String.self, forKey: .accessLabel)
         displayIndex = try c.decodeIfPresent(Int.self, forKey: .displayIndex)
+    }
+
+    var coverURL: URL? { MediaURL.resolve(coverImageUrl) }
+
+    var durationLabel: String? {
+        guard durationSeconds > 0 else { return nil }
+        let hours = durationSeconds / 3600
+        let minutes = (durationSeconds % 3600) / 60
+        if hours > 0 { return minutes > 0 ? "\(hours) sa \(minutes) dk" : "\(hours) sa" }
+        return "\(max(1, minutes)) dk"
+    }
+
+    var progressFraction: Double {
+        guard videoCount > 0 else { return 0 }
+        return min(Double(completedCount) / Double(videoCount), 1)
     }
 }
 
@@ -87,6 +110,7 @@ struct ModuleDTO: Identifiable, Decodable, Hashable {
     var isPublished: Bool? = nil
     var readyCount: Int? = nil
     var displayLabel: String? = nil
+    var locked: Bool? = nil
 
     var numberLabel: String {
         if let displayLabel, !displayLabel.isEmpty { return displayLabel }
@@ -116,7 +140,7 @@ struct ModuleDTO: Identifiable, Decodable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, educationProgramId, moduleNumber, title, description, sortOrder, videoCount, completedCount, isPublished, readyCount, displayLabel
+        case id, educationProgramId, moduleNumber, title, description, sortOrder, videoCount, completedCount, isPublished, readyCount, displayLabel, locked
     }
 
     init(from decoder: Decoder) throws {
@@ -132,6 +156,7 @@ struct ModuleDTO: Identifiable, Decodable, Hashable {
         isPublished = try c.decodeIfPresent(Bool.self, forKey: .isPublished)
         readyCount = try c.decodeIfPresent(Int.self, forKey: .readyCount)
         displayLabel = try c.decodeIfPresent(String.self, forKey: .displayLabel)
+        locked = try c.decodeIfPresent(Bool.self, forKey: .locked)
     }
 }
 
@@ -167,6 +192,9 @@ struct VideoDTO: Identifiable, Decodable, Hashable {
     var lastPositionSeconds: Int? = nil
     var allowTrial: Bool = false
     var locked: Bool? = nil
+    var moduleTitle: String? = nil
+    var programTitle: String? = nil
+    var isResume: Bool? = nil
 
     func isLocked(for user: User?) -> Bool {
         guard let user, user.role == .student else { return false }
@@ -196,12 +224,26 @@ struct VideoDTO: Identifiable, Decodable, Hashable {
         }
     }
 
-    var thumbnailURL: URL? { thumbnailUrl.flatMap(URL.init(string:)) }
+    var thumbnailURL: URL? { MediaURL.resolve(thumbnailUrl) }
+
+    var contextLabel: String? {
+        if let programTitle, !programTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return programTitle
+        }
+        if let moduleTitle, !moduleTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return moduleTitle
+        }
+        return nil
+    }
+
+    var hasResumeProgress: Bool {
+        completed != true && durationSeconds > 0 && (lastPositionSeconds ?? 0) > 5
+    }
 
     var progressFraction: Double {
         if completed == true { return 1 }
         guard durationSeconds > 0, let last = lastPositionSeconds else { return 0 }
-        return min(Double(last) / Double(durationSeconds), 1)
+        return min(max(Double(last) / Double(durationSeconds), 0), 1)
     }
 }
 
@@ -255,6 +297,7 @@ struct ProgramDraft: Equatable {
     var description: String
     var instructorName: String
     var isPublished: Bool
+    var sortOrder: Int? = nil
 }
 
 struct ModuleDraft: Equatable {

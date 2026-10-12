@@ -14,6 +14,7 @@ struct LearningAdminService {
         let description: String
         let instructorName: String
         let isPublished: Bool
+        var sortOrder: Int? = nil
     }
 
     private struct ModuleBody: Encodable {
@@ -42,7 +43,8 @@ struct LearningAdminService {
                 title: draft.title,
                 description: draft.description,
                 instructorName: draft.instructorName,
-                isPublished: draft.isPublished
+                isPublished: draft.isPublished,
+                sortOrder: draft.sortOrder
             ),
             authorized: true
         )
@@ -57,10 +59,17 @@ struct LearningAdminService {
                 title: draft.title,
                 description: draft.description,
                 instructorName: draft.instructorName,
-                isPublished: draft.isPublished
+                isPublished: draft.isPublished,
+                sortOrder: draft.sortOrder
             ),
             authorized: true
         )
+    }
+
+    func uploadProgramCover(programId: String, jpeg: Data) async throws -> String {
+        struct Resp: Decodable { let coverImageUrl: String }
+        let resp: Resp = try await api.upload("/v1/crew/programs/\(programId)/cover", data: jpeg, contentType: "image/jpeg")
+        return resp.coverImageUrl
     }
 
     func deleteProgram(id: String) async throws {

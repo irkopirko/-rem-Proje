@@ -2,6 +2,7 @@ import AVFoundation
 import CoreTransferable
 import PhotosUI
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 // MARK: - Modül listesi
@@ -223,6 +224,11 @@ struct CrewProgramEditorView: View {
     @State private var description = ""
     @State private var instructorName = ""
     @State private var isPublished = true
+    @State private var sortOrder = 1
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var coverPreview: UIImage?
+    @State private var coverJPEG: Data?
+    @State private var existingCoverURL: URL?
     @State private var isSaving = false
     @State private var confirmDelete = false
     @State private var errorMessage: String?
@@ -239,6 +245,48 @@ struct CrewProgramEditorView: View {
 
                 CrewEditorSection(title: "Eğitmen") {
                     CrewTextField(placeholder: "Örn. Vural Emekçi", text: $instructorName)
+                }
+
+                CrewEditorSection(title: "Kapak görseli", footer: "Eğitim detay sayfasının üstünde görünecek sinematik kapak. JPEG veya PNG, en fazla 5 MB.") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(InkMockup.fieldFill)
+                            if let coverPreview {
+                                Image(uiImage: coverPreview)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else if let existingCoverURL {
+                                ProductImageView(url: existingCoverURL)
+                            } else {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(InkMockup.captionColor)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 180)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        PhotosPicker(selection: $pickerItem, matching: .images) {
+                            Label(coverPreview == nil && existingCoverURL == nil ? "Kapak seç" : "Kapağı değiştir", systemImage: "photo.on.rectangle")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .onChange(of: pickerItem) { _, item in
+                            guard let item else { return }
+                            Task { await importCover(item) }
+                        }
+                    }
+                }
+
+                CrewEditorSection(title: "Sıra", footer: "Öğrenci listesinde eğitimlerin görünme sırası.") {
+                    Stepper(value: $sortOrder, in: 1...99) {
+                        Text("\(sortOrder)")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .padding(14)
+                    .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 CrewEditorSection(title: "Açıklama", footer: "Bu eğitim programında neler var, kimlere hitap ediyor…") {
@@ -298,6 +346,8 @@ struct CrewProgramEditorView: View {
             description = existing?.description ?? ""
             instructorName = existing?.instructorName ?? ""
             isPublished = existing?.isPublished ?? true
+            sortOrder = max(1, existing?.sortOrder ?? 1)
+            existingCoverURL = existing?.coverURL
         }
         .confirmationDialog("Eğitim kalıcı olarak silinecek.", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Eğitimi sil", role: .destructive) { Task { await deleteProgram() } }
@@ -320,16 +370,42 @@ struct CrewProgramEditorView: View {
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
             instructorName: instructorName.trimmingCharacters(in: .whitespacesAndNewlines),
-            isPublished: isPublished
+            isPublished: isPublished,
+            sortOrder: sortOrder
         )
         do {
+            let programId: String
             if let existing {
                 try await service.updateProgram(id: existing.id, draft)
+                programId = existing.id
             } else {
-                _ = try await service.createProgram(draft)
+                programId = try await service.createProgram(draft).id
+            }
+            if let coverJPEG {
+                _ = try await service.uploadProgramCover(programId: programId, jpeg: coverJPEG)
             }
             onSaved()
             dismiss()
+        } catch {
+            errorMessage = AuthErrorMessage.from(error)
+        }
+    }
+
+    private func importCover(_ item: PhotosPickerItem) async {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let jpeg = image.jpegData(compressionQuality: 0.82)
+            else {
+                errorMessage = "Görsel okunamadı. JPEG veya PNG dene."
+                return
+            }
+            guard jpeg.count <= 5 * 1024 * 1024 else {
+                errorMessage = "Kapak en fazla 5 MB olabilir."
+                return
+            }
+            coverPreview = image
+            coverJPEG = jpeg
         } catch {
             errorMessage = AuthErrorMessage.from(error)
         }

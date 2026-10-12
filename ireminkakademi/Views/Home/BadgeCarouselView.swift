@@ -6,7 +6,7 @@ struct BadgeCarouselView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
                 ForEach(badges) { badge in
                     Button { onSelect(badge) } label: {
                         VStack(spacing: 8) {
@@ -20,8 +20,9 @@ struct BadgeCarouselView: View {
                                 .foregroundStyle(InkMockup.captionColor)
                                 .lineLimit(2)
                                 .multilineTextAlignment(.center)
-                                .frame(width: 92)
+                                .frame(width: 92, height: 34, alignment: .top)
                         }
+                        .frame(width: 92, alignment: .top)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(badge.title), \(badge.xpReward) XP\(badge.isEarned ? ", kazanıldı" : "")")

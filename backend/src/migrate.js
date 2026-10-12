@@ -103,6 +103,7 @@ export async function runMigrations() {
       mime_type VARCHAR(80) NOT NULL,
       byte_size INT UNSIGNED NOT NULL,
       storage_key VARCHAR(255) NULL,
+      thumbnail_key VARCHAR(255) NULL,
       sort_order INT NOT NULL DEFAULT 0,
       uploaded_by_user_id CHAR(36) NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -161,6 +162,7 @@ export async function runMigrations() {
   }
   await addColumnIfMissing(pool, 'feed_media', 'reply_id', 'CHAR(36) NULL AFTER post_id');
   await addColumnIfMissing(pool, 'feed_media', 'data', 'MEDIUMBLOB NULL AFTER storage_key');
+  await addColumnIfMissing(pool, 'feed_media', 'thumbnail_key', 'VARCHAR(255) NULL AFTER storage_key');
   await addIndexIfMissing(pool, 'feed_media', 'idx_feed_media_reply', 'reply_id');
 
   await pool.query(`CREATE TABLE IF NOT EXISTS education_programs (

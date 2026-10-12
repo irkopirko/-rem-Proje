@@ -5,6 +5,9 @@ private struct ShopCategoryPage: Identifiable, Hashable {
     let title: String
     let coverUrl: String?
     let products: [ProductDTO]
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 struct ProductsListView: View {
@@ -33,7 +36,7 @@ struct ProductsListView: View {
                         }
                     } else {
                         ForEach(pages) { page in
-                            NavigationLink(value: page) {
+                            NavigationLink(value: page.id) {
                                 ProductCategoryCard(page: page)
                             }
                             .buttonStyle(.plain)
@@ -48,8 +51,10 @@ struct ProductsListView: View {
             .scrollBounceBehavior(.always)
             .navigationBarHidden(true)
             .refreshable { await load() }
-            .navigationDestination(for: ShopCategoryPage.self) { page in
-                ProductCategoryDetailView(title: page.title, products: page.products)
+            .navigationDestination(for: String.self) { categoryId in
+                if let page = pages.first(where: { $0.id == categoryId }) {
+                    ProductCategoryDetailView(title: page.title, products: page.products)
+                }
             }
             .navigationDestination(for: ProductDTO.self) { product in
                 ProductDetailView(product: product)
@@ -64,15 +69,15 @@ struct ProductsListView: View {
         defer { isLoading = false }
         do {
             let data = try await catalog.fetchProducts()
-            pages = data.categories.enumerated().map { index, category in
-                let products = category.products ?? []
-                return ShopCategoryPage(
-                    id: "\(index)|\(category.id)|\(category.name)",
+            pages = data.categories.map { category in
+                ShopCategoryPage(
+                    id: category.id.trimmingCharacters(in: .whitespacesAndNewlines),
                     title: category.name,
                     coverUrl: category.imageUrl,
-                    products: products
+                    products: category.products ?? []
                 )
             }
+            .filter { !$0.id.isEmpty }
             loadError = nil
         } catch {
             if pages.isEmpty { loadError = error.localizedDescription }

@@ -43,8 +43,10 @@ struct FeedMediaDTO: Identifiable, Decodable, Hashable {
     let kind: String
     var mimeType: String? = nil
     var url: String? = nil
+    var thumbnailUrl: String? = nil
 
     var resolvedURL: URL? { MediaURL.resolve(url) }
+    var thumbnailURL: URL? { MediaURL.resolve(thumbnailUrl) }
     var isVideo: Bool { kind == "video" }
 }
 

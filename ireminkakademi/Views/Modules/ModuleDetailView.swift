@@ -3,6 +3,7 @@ import SwiftUI
 struct ModuleDetailView: View {
     let module: ModuleDTO
     let container: DIContainer
+    var hidesTabBar: Binding<Bool> = .constant(false)
     @State private var catalog = CatalogService()
     @State private var videos: [VideoDTO]?
     @State private var loadError: String?
@@ -62,12 +63,14 @@ struct ModuleDetailView: View {
                 }
             }
             .padding(.horizontal, InkMockup.screenHorizontal)
-            .padding(.vertical, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 36)
         }
         .studentScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
+        .onAppear { hidesTabBar.wrappedValue = true }
         .overlay {
             if showPaywall {
                 ZStack {

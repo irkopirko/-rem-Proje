@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ModulesListView: View {
     let container: DIContainer
+    var hidesTabBar: Binding<Bool> = .constant(false)
     @State private var catalog = CatalogService()
     @State private var data: CatalogResponse?
     @State private var programs: [EducationProgramDTO] = []
@@ -86,20 +87,22 @@ struct ModulesListView: View {
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
-                .padding(.bottom, 24)
+                .padding(.bottom, 28)
             }
             .studentScreenBackground()
             .refreshable { await load() }
             .navigationDestination(for: EducationProgramDTO.self) { program in
-                EducationProgramDetailView(program: program, container: container)
+                EducationProgramDetailView(program: program, container: container, hidesTabBar: hidesTabBar)
             }
             .navigationDestination(for: ModuleDTO.self) { module in
-                ModuleDetailView(module: module, container: container)
+                ModuleDetailView(module: module, container: container, hidesTabBar: hidesTabBar)
             }
             .navigationDestination(for: VideoDTO.self) { video in
                 VideoPlayerScreen(video: video, reportsProgress: container.sessionUser?.role == .student)
+                    .onAppear { hidesTabBar.wrappedValue = true }
             }
             .task { if data == nil { await load() } }
+            .onAppear { hidesTabBar.wrappedValue = false }
             .overlay {
                 if showPaywall {
                     ZStack {
@@ -140,6 +143,13 @@ struct EducationProgramCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if program.coverURL != nil {
+                ProductImageView(url: program.coverURL)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 128)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
             HStack(spacing: 14) {
                 Text(program.numberLabel)
                     .font(AppTypography.monoMedium(size: 13))
@@ -205,6 +215,11 @@ struct ModuleCard: View {
                         .foregroundStyle(InkMockup.captionColor)
                 }
                 Spacer(minLength: 0)
+                if module.locked == true {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(InkMockup.captionColor)
+                }
                 Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
             }
 

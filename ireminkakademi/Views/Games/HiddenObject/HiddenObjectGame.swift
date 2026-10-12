@@ -4,10 +4,16 @@ import SwiftUI
 struct HiddenObjectGame: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: HiddenObjectGameViewModel
+    var hidesTabBar: Binding<Bool> = .constant(false)
     var onComplete: ((Int) -> Void)?
 
-    init(config: HiddenObjectGameConfig = .standard, onComplete: ((Int) -> Void)? = nil) {
+    init(
+        config: HiddenObjectGameConfig = .standard,
+        hidesTabBar: Binding<Bool> = .constant(false),
+        onComplete: ((Int) -> Void)? = nil
+    ) {
         _viewModel = State(initialValue: HiddenObjectGameViewModel(config: config))
+        self.hidesTabBar = hidesTabBar
         self.onComplete = onComplete
     }
 
@@ -35,7 +41,8 @@ struct HiddenObjectGame: View {
                     imageSet: viewModel.config.imageSet
                 )
                 .padding(.horizontal, AppSpacing.screenH)
-                .padding(.vertical, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 8)
             }
             .studentScreenBackground()
 
@@ -45,8 +52,14 @@ struct HiddenObjectGame: View {
         }
         .navigationTitle("Günün Oyunu")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { viewModel.startGame() }
-        .onDisappear { viewModel.exitGame() }
+        .onAppear {
+            hidesTabBar.wrappedValue = true
+            viewModel.startGame()
+        }
+        .onDisappear {
+            viewModel.exitGame()
+            hidesTabBar.wrappedValue = false
+        }
         .onChange(of: viewModel.phase) { _, newPhase in
             if newPhase == .won {
                 onComplete?(viewModel.score)

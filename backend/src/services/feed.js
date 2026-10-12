@@ -43,12 +43,21 @@ export function feedMediaPublicUrl(id, storageKey) {
   return (storageKey && storageCdnUrl(storageKey)) || `/media/feed-media/${id}`;
 }
 
+export function feedThumbnailPublicUrl(id, thumbnailKey) {
+  return (thumbnailKey && storageCdnUrl(thumbnailKey)) || `/media/feed-thumbnails/${id}`;
+}
+
 function mediaDTO(row) {
+  const kind = row.kind;
+  const thumbnailKey = row.thumbnail_key || row.thumbnailKey || null;
+  const hasEmbeddedThumb = Boolean(row.hasThumb || (kind === 'video' && row.data));
   return {
     id: row.id,
-    kind: row.kind,
-    mimeType: row.mime_type,
+    kind,
+    mimeType: row.mime_type || row.mimeType,
     url: feedMediaPublicUrl(row.id, row.storage_key || row.storageKey),
+    thumbnailUrl:
+      kind === 'video' && (thumbnailKey || hasEmbeddedThumb) ? feedThumbnailPublicUrl(row.id, thumbnailKey) : null,
   };
 }
 
@@ -96,7 +105,9 @@ async function attachMedia(posts) {
   const ids = posts.map((p) => p.id);
   const placeholders = ids.map(() => '?').join(',');
   const rows = await query(
-    `SELECT id, post_id AS postId, kind, mime_type, storage_key FROM feed_media
+    `SELECT id, post_id AS postId, kind, mime_type, storage_key, thumbnail_key,
+            (kind = 'video' AND data IS NOT NULL) AS hasThumb
+     FROM feed_media
      WHERE post_id IN (${placeholders}) AND reply_id IS NULL ORDER BY sort_order, created_at`,
     ids
   );
@@ -171,7 +182,9 @@ async function attachReplyMedia(replies) {
   const ids = replies.map((r) => r.id);
   const placeholders = ids.map(() => '?').join(',');
   const rows = await query(
-    `SELECT id, reply_id AS replyId, kind, mime_type, storage_key FROM feed_media
+    `SELECT id, reply_id AS replyId, kind, mime_type, storage_key, thumbnail_key,
+            (kind = 'video' AND data IS NOT NULL) AS hasThumb
+     FROM feed_media
      WHERE reply_id IN (${placeholders}) ORDER BY sort_order, created_at`,
     ids
   );
@@ -211,6 +224,15 @@ export async function readFeedMedia(id) {
   }
   if (row.data) return { mimeType: row.mimeType, data: row.data, storageKey: null };
   return null;
+}
+
+export async function readFeedThumbnail(id) {
+  const [row] = await query(
+    `SELECT id, thumbnail_key AS storageKey, data FROM feed_media WHERE id = ? AND kind = 'video' LIMIT 1`,
+    [id]
+  );
+  if (!row || (!row.storageKey && !row.data)) return null;
+  return { mimeType: 'image/jpeg', data: row.data, storageKey: row.storageKey };
 }
 
 async function countRecent(table, userId, minutes, extra = '') {
@@ -301,7 +323,26 @@ export async function addPostMedia(user, postId, buffer) {
   return { status: stored.status, body: stored.body };
 }
 
-async function storeFeedMedia({ postId, replyId, buffer, kind, mimeType, userId, maxOrder }) {
+async function persistVideoThumbnail(id, postId, replyId, thumbnailBuffer) {
+  if (!thumbnailBuffer?.length) return { thumbnailKey: null, data: null };
+  const imageMime = detectImageMime(thumbnailBuffer);
+  if (imageMime !== 'image/jpeg' && imageMime !== 'image/png') return { thumbnailKey: null, data: null };
+  if (thumbnailBuffer.length > 2 * 1024 * 1024) return { thumbnailKey: null, data: null };
+  let thumbnailKey = null;
+  if (isStorageConfigured()) {
+    const ext = imageMime === 'image/png' ? 'png' : 'jpg';
+    thumbnailKey = `feed-media/${replyId || postId}/${id}-thumb.${ext}`;
+    try {
+      await uploadToStorage(thumbnailKey, thumbnailBuffer, imageMime);
+    } catch (err) {
+      console.error('[feed] thumbnail upload failed', err.message);
+      thumbnailKey = null;
+    }
+  }
+  return { thumbnailKey, data: thumbnailKey ? null : thumbnailBuffer };
+}
+
+async function storeFeedMedia({ postId, replyId, buffer, kind, mimeType, userId, maxOrder, thumbnailBuffer }) {
   const id = uuidv4();
   const ext = kind === 'video' ? 'mp4' : mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
   let storageKey = null;
@@ -314,14 +355,72 @@ async function storeFeedMedia({ postId, replyId, buffer, kind, mimeType, userId,
       storageKey = null;
     }
   }
-  const data = kind === 'image' ? buffer : null;
-  if (!storageKey && !data) return { status: 503, body: { error: 'Medya şu an yüklenemedi' } };
+  const thumb = kind === 'video' ? await persistVideoThumbnail(id, postId, replyId, thumbnailBuffer) : { thumbnailKey: null, data: null };
+  const data = kind === 'image' ? buffer : thumb.data;
+  if (!storageKey && !data && kind === 'image') return { status: 503, body: { error: 'Medya şu an yüklenemedi' } };
+  if (!storageKey && kind === 'video') return { status: 503, body: { error: 'Medya şu an yüklenemedi' } };
   await query(
-    `INSERT INTO feed_media (id, post_id, reply_id, kind, mime_type, byte_size, storage_key, data, sort_order, uploaded_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, postId, replyId, kind, mimeType, buffer.length, storageKey, data, Number(maxOrder) + 1, userId]
+    `INSERT INTO feed_media (id, post_id, reply_id, kind, mime_type, byte_size, storage_key, thumbnail_key, data, sort_order, uploaded_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      postId,
+      replyId,
+      kind,
+      mimeType,
+      buffer.length,
+      storageKey,
+      thumb.thumbnailKey,
+      data,
+      Number(maxOrder) + 1,
+      userId,
+    ]
   );
-  return { status: 201, body: { media: mediaDTO({ id, kind, mime_type: mimeType }) } };
+  return {
+    status: 201,
+    body: {
+      media: mediaDTO({
+        id,
+        kind,
+        mime_type: mimeType,
+        storage_key: storageKey,
+        thumbnail_key: thumb.thumbnailKey,
+        data,
+      }),
+    },
+  };
+}
+
+export async function setFeedMediaThumbnail(user, mediaId, buffer) {
+  if (!canWriteFeed(user)) return { status: 402, body: { error: 'Membership required' } };
+  const [row] = await query(
+    `SELECT id, post_id, reply_id, kind, mime_type, storage_key, uploaded_by_user_id
+     FROM feed_media WHERE id = ? LIMIT 1`,
+    [mediaId]
+  );
+  if (!row) return { status: 404, body: { error: 'Not found' } };
+  if (row.kind !== 'video') return { status: 400, body: { error: 'Thumbnail yalnızca videoya eklenir' } };
+  if (row.uploaded_by_user_id !== user.id && !isStaff(user)) return { status: 403, body: { error: 'Forbidden' } };
+
+  const thumb = await persistVideoThumbnail(row.id, row.post_id, row.reply_id, buffer);
+  if (!thumb.thumbnailKey && !thumb.data) {
+    return { status: 415, body: { error: 'Thumbnail JPEG veya PNG olmalı' } };
+  }
+  await query(`UPDATE feed_media SET thumbnail_key = ?, data = ? WHERE id = ?`, [
+    thumb.thumbnailKey,
+    thumb.data,
+    row.id,
+  ]);
+  return {
+    status: 200,
+    body: {
+      media: mediaDTO({
+        ...row,
+        thumbnail_key: thumb.thumbnailKey,
+        data: thumb.data,
+      }),
+    },
+  };
 }
 
 export async function addReplyMedia(user, replyId, buffer) {
@@ -522,8 +621,11 @@ export async function publicAuthor(userId) {
 
 /** Soft-deleted media files stay on CDN; called when a post is hard-removed later if needed. */
 export async function deleteMediaFiles(postId) {
-  const rows = await query(`SELECT storage_key AS storageKey FROM feed_media WHERE post_id = ? AND storage_key IS NOT NULL`, [
-    postId,
-  ]);
-  await Promise.all(rows.map((r) => deleteFromStorage(r.storageKey)));
+  const rows = await query(
+    `SELECT storage_key AS storageKey, thumbnail_key AS thumbnailKey FROM feed_media WHERE post_id = ?`,
+    [postId]
+  );
+  await Promise.all(
+    rows.flatMap((r) => [r.storageKey, r.thumbnailKey].filter(Boolean).map((key) => deleteFromStorage(key)))
+  );
 }

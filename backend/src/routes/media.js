@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { imageUrl, readImage } from '../services/contentImages.js';
 import { profilePhotoUrl, readProfilePhoto } from '../services/profilePhotos.js';
 import { homeworkSubmissionUrl, readHomeworkSubmission } from '../services/homeworkSubmissions.js';
-import { feedMediaPublicUrl, readFeedMedia } from '../services/feed.js';
+import { feedMediaPublicUrl, feedThumbnailPublicUrl, readFeedMedia, readFeedThumbnail } from '../services/feed.js';
+import { readProgramCover } from '../services/programs.js';
+import { signedVideoThumbUrl } from '../services/videoCatalog.js';
 
 const router = Router();
 
@@ -46,6 +48,32 @@ router.get('/feed-media/:id', async (req, res) => {
   const file = await readFeedMedia(req.params.id);
   if (!file) return res.status(404).end();
   return send(res, file, feedMediaPublicUrl(req.params.id, file.storageKey));
+});
+
+router.get('/feed-thumbnails/:id', async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(404).end();
+  const file = await readFeedThumbnail(req.params.id);
+  if (!file) return res.status(404).end();
+  return send(res, file, feedThumbnailPublicUrl(req.params.id, file.storageKey));
+});
+
+router.get('/program-covers/:id', async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(404).end();
+  const cover = await readProgramCover(req.params.id);
+  if (!cover?.url) return res.status(404).end();
+  if (/^https?:\/\//i.test(cover.url)) return res.redirect(302, cover.url);
+  return res.status(404).end();
+});
+
+router.get('/video-thumbs/:id', async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(404).end();
+  const url = await signedVideoThumbUrl(req.params.id);
+  if (!url || !url.startsWith('https://')) return res.status(404).end();
+  res.set({
+    'Cache-Control': 'public, max-age=3600',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  });
+  return res.redirect(302, url);
 });
 
 router.get('/homework-submissions/:id', async (req, res) => {

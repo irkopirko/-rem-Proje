@@ -53,7 +53,7 @@ struct AssignmentsListView: View {
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
-                .padding(.bottom, 16)
+                .padding(.bottom, 28)
             }
             .studentScreenBackground()
             .navigationBarHidden(true)

@@ -236,7 +236,7 @@ struct VideoPlayerScreen: View {
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 16)
-                .padding(.bottom, 24)
+                .padding(.bottom, 48)
             }
         }
         .studentScreenBackground()

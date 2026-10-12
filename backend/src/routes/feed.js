@@ -18,6 +18,7 @@ import {
   publicAuthor,
   reportPost,
   reportReply,
+  setFeedMediaThumbnail,
   toggleLike,
 } from '../services/feed.js';
 
@@ -61,6 +62,14 @@ router.post('/posts', async (req, res) => {
 router.post('/posts/:id/media', rawMedia, async (req, res) => {
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Invalid file' });
   const result = await addPostMedia(req.user, req.params.id, req.body);
+  return res.status(result.status).json(result.body);
+});
+
+const rawThumbnail = express.raw({ type: () => true, limit: '2mb' });
+
+router.post('/media/:id/thumbnail', rawThumbnail, async (req, res) => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Invalid file' });
+  const result = await setFeedMediaThumbnail(req.user, req.params.id, req.body);
   return res.status(result.status).json(result.body);
 });
 
