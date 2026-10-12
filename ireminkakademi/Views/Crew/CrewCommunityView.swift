@@ -13,24 +13,22 @@ struct CrewCommunityView: View {
     @State private var tab: Tab = .room
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Picker("Görünüm", selection: $tab) {
-                    ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-
-                switch tab {
-                case .room: CommunityRoomView(container: container)
-                case .reports: CrewReportsList()
-                case .banned: CrewBannedList()
-                }
+        VStack(spacing: 0) {
+            Picker("Görünüm", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
             }
-            .navigationTitle("Topluluk")
-            .navigationBarTitleDisplayMode(.inline)
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            switch tab {
+            case .room: CommunityRoomView(container: container)
+            case .reports: CrewReportsList()
+            case .banned: CrewBannedList()
+            }
         }
+        .navigationTitle("Sohbet")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

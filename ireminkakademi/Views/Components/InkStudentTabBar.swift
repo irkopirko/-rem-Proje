@@ -30,8 +30,10 @@ struct InkStudentTabBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var tabDotNS
 
     private let iconSize: CGFloat = 30
+    private let highlightSize: CGFloat = 44
     private let capsuleHeight: CGFloat = 70
 
     var body: some View {
@@ -55,19 +57,22 @@ struct InkStudentTabBar: View {
             select(tab)
         } label: {
             ZStack {
-                Circle()
-                    .fill(InkGlass.rose.opacity(isActive ? 0.14 : 0))
-                    .frame(width: 44, height: 44)
-                Image(isActive ? tab.selectedIcon : tab.normalIcon)
+                if isActive {
+                    Circle()
+                        .fill(InkGlass.rose.opacity(0.14))
+                        .frame(width: highlightSize, height: highlightSize)
+                        .matchedGeometryEffect(id: "tabDot", in: tabDotNS)
+                        .shadow(color: InkGlass.rose.opacity(0.28), radius: 7, y: 0)
+                }
+                Image(tab.normalIcon)
                     .resizable()
                     .renderingMode(.original)
+                    .interpolation(.high)
                     .scaledToFit()
                     .frame(width: iconSize, height: iconSize)
-                    .opacity(isActive ? 1 : 0.55)
-                    .shadow(color: isActive ? InkGlass.rose.opacity(0.32) : .clear, radius: 7, y: 0)
             }
             .frame(maxWidth: .infinity)
-            .frame(minWidth: 44, minHeight: 44)
+            .frame(minWidth: 44, minHeight: highlightSize)
             .contentShape(Rectangle())
             .accessibilityLabel(accessibilityLabel(for: tab))
             .accessibilityAddTraits(isActive ? .isSelected : [])

@@ -67,15 +67,31 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   INDEX idx_audit_action (action)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS education_programs (
+  id CHAR(36) PRIMARY KEY,
+  slug VARCHAR(80) NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  instructor_name VARCHAR(160) NULL,
+  cover_image_url TEXT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_programs_order (is_published, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS modules (
   id CHAR(36) PRIMARY KEY,
+  education_program_id CHAR(36) NULL,
   module_number DECIMAL(6,2) NOT NULL UNIQUE,
   title VARCHAR(255) NOT NULL,
   description TEXT NULL,
   sort_order INT NOT NULL DEFAULT 0,
   is_published TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_modules_program (education_program_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS videos (
@@ -261,6 +277,8 @@ CREATE TABLE IF NOT EXISTS homework_submissions (
   file_mime VARCHAR(64) NOT NULL,
   data MEDIUMBLOB NULL,
   storage_key VARCHAR(255) NULL,
+  file_size BIGINT UNSIGNED NULL,
+  file_name VARCHAR(180) NULL,
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (assignment_id) REFERENCES homework_assignments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

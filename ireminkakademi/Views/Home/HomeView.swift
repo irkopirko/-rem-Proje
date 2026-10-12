@@ -7,8 +7,8 @@ struct HomeView: View {
     @State private var data: CatalogResponse?
     @State private var homework: [HomeworkAssignmentDTO] = []
     @State private var badgeProgress: BadgeProgressResponse?
-    @State private var selectedBadge: BadgeDTO?
     @State private var gamePlayedToday = DailyGameStore.playedToday
+    @State private var latestPost: FeedPostDTO?
 
     var user: User? { container.sessionUser }
 
@@ -26,19 +26,22 @@ struct HomeView: View {
                             }
                         } label: {
                             InkMockCard {
-                                HStack(spacing: 14) {
+                                HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: "play.rectangle.fill")
-                                        .font(.system(size: 34))
+                                        .font(.system(size: 26))
                                         .foregroundStyle(InkMockup.accentPink)
-                                    VStack(alignment: .leading, spacing: 8) {
+                                        .padding(.top, 1)
+                                    VStack(alignment: .leading, spacing: 4) {
                                         Text(data?.nextVideo?.title ?? "Yeni videolar yakında")
                                             .font(AppTypography.cardTitle())
                                             .foregroundStyle(InkMockup.textPrimary)
                                             .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
                                         if user?.canSeeHomework == true {
                                             Text(homework.first?.title ?? "Bekleyen ödevin yok")
                                                 .font(AppTypography.body())
                                                 .foregroundStyle(InkMockup.captionColor)
+                                                .fixedSize(horizontal: false, vertical: true)
                                         }
                                     }
                                     Spacer(minLength: 0)
@@ -46,61 +49,40 @@ struct HomeView: View {
                                         Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
                                     }
                                 }
-                                .padding(.vertical, 10)
-                                .frame(minHeight: 110)
                             }
                         }
                         .buttonStyle(.plain)
                         .disabled(data?.nextVideo == nil)
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        sectionTitle("Rozetler")
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                ForEach(badgeProgress?.badges ?? []) { badge in
-                                    Button { selectedBadge = badge } label: {
-                                        VStack(spacing: 8) {
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .fill(.clear)
-                                                .frame(width: 92, height: 92)
-                                                .overlay { BadgeGlyph(badge: badge, size: 30) }
-                                                .glassChrome(radius: 18)
-                                            Text(badge.title)
-                                                .font(AppTypography.caption(size: 12))
-                                                .foregroundStyle(InkMockup.captionColor)
-                                                .lineLimit(2)
-                                                .multilineTextAlignment(.center)
-                                                .frame(width: 92)
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("\(badge.title), \(badge.xpReward) XP\(badge.isEarned ? ", kazanıldı" : "")")
-                                }
-                            }
-                        }
+                    NavigationLink {
+                        CommunityFeedView(container: container, hidesTabBar: hidesTabBar)
+                    } label: {
+                        CommunityHomePreview(post: latestPost)
                     }
+                    .buttonStyle(.plain)
+                    .onAppear { Task { await loadLatestPost() } }
 
                     VStack(alignment: .leading, spacing: 12) {
                         sectionTitle("Günün Oyunu")
                         if gamePlayedToday {
                             InkMockCard {
-                                HStack(spacing: 14) {
+                                HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 32))
+                                        .font(.system(size: 26))
                                         .foregroundStyle(InkMockup.accentPink)
-                                    VStack(alignment: .leading, spacing: 6) {
+                                        .padding(.top, 1)
+                                    VStack(alignment: .leading, spacing: 4) {
                                         Text("Bugün oynadın")
                                             .font(AppTypography.cardTitle(size: 19))
                                             .foregroundStyle(InkMockup.textPrimary)
                                         Text("Yarın tekrar gel. Günde bir kez oynanır.")
                                             .font(AppTypography.body())
                                             .foregroundStyle(InkMockup.captionColor)
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
                                     Spacer(minLength: 0)
                                 }
-                                .padding(.vertical, 10)
-                                .frame(minHeight: 100)
                             }
                         } else {
                             NavigationLink {
@@ -109,47 +91,31 @@ struct HomeView: View {
                                 }
                             } label: {
                                 InkMockCard {
-                                    HStack(spacing: 14) {
-                                        Image(systemName: "gamecontroller.fill")
-                                            .font(.system(size: 32))
-                                            .foregroundStyle(InkMockup.accentPink)
-                                        VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Image("HomeGameIcon")
+                                            .resizable()
+                                            .renderingMode(.original)
+                                            .scaledToFit()
+                                            .frame(width: 44, height: 44)
+                                        VStack(alignment: .leading, spacing: 4) {
                                             Text("Oyuna Başla")
                                                 .font(AppTypography.cardTitle(size: 19))
                                                 .foregroundStyle(InkMockup.textPrimary)
                                             Text("XP kazanmak için oyna. Günde bir kez.")
                                                 .font(AppTypography.body())
                                                 .foregroundStyle(InkMockup.captionColor)
+                                                .fixedSize(horizontal: false, vertical: true)
                                         }
                                         Spacer(minLength: 0)
                                         Image(systemName: "chevron.right")
                                             .foregroundStyle(InkMockup.captionColor)
                                     }
-                                    .padding(.vertical, 10)
-                                    .frame(minHeight: 100)
                                 }
                             }
                             .buttonStyle(.plain)
                         }
                     }
 
-                    if user?.canSeeHomework == true {
-                        NavigationLink {
-                            GuidePDFScreen()
-                        } label: {
-                            HStack {
-                                Text("INK AKADEMI Rehberin")
-                                    .font(AppTypography.cardTitle(size: 17))
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                            }
-                            .foregroundStyle(InkMockup.textPrimary)
-                            .padding(.horizontal, 18)
-                            .frame(minHeight: 60)
-                            .glassChrome(radius: 18, emphasized: true)
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
@@ -158,11 +124,7 @@ struct HomeView: View {
             .studentScreenBackground()
             .navigationBarHidden(true)
             .task { await loadHome() }
-            .overlay {
-                if let badge = selectedBadge {
-                    BadgeInfoPopup(badge: badge) { selectedBadge = nil }
-                }
-            }
+            .onAppear { hidesTabBar.wrappedValue = false }
         }
     }
 
@@ -175,6 +137,11 @@ struct HomeView: View {
         }
         badgeProgress = try? await catalog.fetchBadgeProgress()
         gamePlayedToday = badgeProgress?.gamePlayedToday == true || DailyGameStore.playedToday
+        await loadLatestPost()
+    }
+
+    private func loadLatestPost() async {
+        latestPost = try? await CommunityFeedService().latest()
     }
 
     private func reportWeeklyGame() async {
@@ -197,22 +164,36 @@ struct HomeView: View {
                 initials: user?.initials ?? "",
                 size: 56,
                 frame: user?.avatarFrame ?? .gray,
-                rank: (badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.rank
+                rank: user?.showsStudentRank == true
+                    ? (badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.rank
+                    : nil
             )
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Hoş geldin, \(user?.firstName ?? "user_name")")
-                    .font(AppTypography.cardTitle(size: 20))
-                    .foregroundStyle(InkMockup.textPrimary)
-                Text((badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.caption ?? "Seviye 0  ·  0 XP")
-                    .font(AppTypography.mono(size: 12))
-                    .tracking(1.0)
-                    .foregroundStyle(InkMockup.captionColor)
-                if let next = badgeProgress.map({ LevelMath.from(xp: $0.totalXp) }) ?? user?.levelProgress {
-                    Text(next.nextCaption)
-                        .font(AppTypography.mono(size: 11))
-                        .tracking(0.8)
-                        .foregroundStyle(InkMockup.placeholderColor)
+                HStack(spacing: 5) {
+                    Text("Hoş geldin, \(user?.firstName ?? "user_name")")
+                        .font(AppTypography.cardTitle(size: 20))
+                        .foregroundStyle(InkMockup.textPrimary)
+                    if user?.isVerified == true {
+                        VerifiedSeal(size: 14)
+                    }
+                }
+                if user?.showsStudentRank == true {
+                    Text((badgeProgress.map { LevelMath.from(xp: $0.totalXp) } ?? user?.levelProgress)?.caption ?? "Seviye 0  ·  0 XP")
+                        .font(AppTypography.mono(size: 12))
+                        .tracking(1.0)
+                        .foregroundStyle(InkMockup.captionColor)
+                    if let next = badgeProgress.map({ LevelMath.from(xp: $0.totalXp) }) ?? user?.levelProgress {
+                        Text(next.nextCaption)
+                            .font(AppTypography.mono(size: 11))
+                            .tracking(0.8)
+                            .foregroundStyle(InkMockup.placeholderColor)
+                    }
+                } else if user?.role == .crew {
+                    Text("Ink Akademi Crew")
+                        .font(AppTypography.mono(size: 12))
+                        .tracking(1.0)
+                        .foregroundStyle(InkMockup.accentPink)
                 }
             }
 
@@ -223,80 +204,12 @@ struct HomeView: View {
                     .onAppear { hidesTabBar.wrappedValue = true }
                     .onDisappear { hidesTabBar.wrappedValue = false }
             } label: {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(InkMockup.accentPink)
+                Image("HomeChatIcon")
+                    .resizable()
+                    .renderingMode(.original)
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
             }
         }
-    }
-}
-
-private struct BadgeInfoPopup: View {
-    let badge: BadgeDTO
-    var onDismiss: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.62)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onDismiss)
-
-            VStack(spacing: 14) {
-                BadgeGlyph(badge: badge, size: 34)
-                    .frame(width: 72, height: 72)
-                    .glassChrome(radius: 16)
-
-                Text(badge.title)
-                    .font(AppTypography.cardTitle())
-                    .foregroundStyle(InkMockup.textPrimary)
-                    .multilineTextAlignment(.center)
-
-                Text(howToEarn)
-                    .font(AppTypography.body(size: 14))
-                    .foregroundStyle(InkMockup.captionColor)
-                    .multilineTextAlignment(.center)
-
-                Text("+\(badge.xpReward) XP · \(badge.isEarned ? "Kazanıldı" : "Henüz kazanılmadı")")
-                    .font(AppTypography.monoMedium(size: 12))
-                    .tracking(1.1)
-                    .foregroundStyle(InkMockup.accentPink)
-
-                GlassButton(title: "Tamam", action: onDismiss)
-            }
-            .padding(22)
-            .frame(maxWidth: 320)
-            .glassChrome(radius: 24, emphasized: true)
-            .padding(.horizontal, 36)
-        }
-    }
-
-    private var howToEarn: String {
-        let text = badge.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return text.isEmpty ? "Bu rozeti tamamlayınca kazanırsın." : text
-    }
-}
-
-struct BadgeGlyph: View {
-    let badge: BadgeDTO
-    var size: CGFloat = 30
-
-    var body: some View {
-        if let url = badge.imageURL {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFit().padding(8)
-            } placeholder: {
-                fallback
-            }
-        } else if let name = badge.localImageName {
-            Image(name).resizable().renderingMode(.original).scaledToFit().padding(6)
-        } else {
-            fallback
-        }
-    }
-
-    private var fallback: some View {
-        Image(systemName: badge.symbolName)
-            .font(.system(size: size))
-            .foregroundStyle(badge.isEarned ? InkMockup.accentPink : InkMockup.placeholderColor)
     }
 }

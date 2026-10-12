@@ -4,6 +4,9 @@ struct AccountTabView: View {
     let container: DIContainer
     @State private var confirmLogout = false
     @State private var appearance = AppearanceSettings.shared
+    @State private var catalog = CatalogService()
+    @State private var badgeProgress: BadgeProgressResponse?
+    @State private var selectedBadge: BadgeDTO?
 
     var user: User? { container.sessionUser }
 
@@ -14,6 +17,16 @@ struct AccountTabView: View {
                     InkMockSectionTitle(text: "Hesabım")
 
                     profileSummary
+
+                    Text("Rozetlerim")
+                        .font(AppTypography.subheading(size: 16))
+                        .foregroundStyle(InkMockup.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityAddTraits(.isHeader)
+
+                    if let badges = badgeProgress?.badges, !badges.isEmpty {
+                        BadgeCarouselView(badges: badges) { selectedBadge = $0 }
+                    }
 
                     InkMockMenuButton(title: "Kişisel Bilgiler") {
                         PersonalInfoView(user: user)
@@ -65,6 +78,12 @@ struct AccountTabView: View {
             }
             .studentScreenBackground()
             .navigationBarHidden(true)
+            .task { badgeProgress = try? await catalog.fetchBadgeProgress() }
+            .overlay {
+                if let selectedBadge {
+                    BadgeInfoPopup(badge: selectedBadge) { self.selectedBadge = nil }
+                }
+            }
             .confirmationDialog("Çıkış yapmak istediğine emin misin?", isPresented: $confirmLogout, titleVisibility: .visible) {
                 Button("Çıkış Yap", role: .destructive) {
                     Task { await container.completeLogout() }
@@ -113,9 +132,14 @@ struct AccountTabView: View {
         HStack(alignment: .top, spacing: 16) {
             EditableProfileAvatar(container: container, size: 84)
             VStack(alignment: .leading, spacing: 3) {
-                Text(user?.displayName ?? "")
-                    .font(AppTypography.cardTitle(size: 20))
-                    .foregroundStyle(InkMockup.textPrimary)
+                HStack(spacing: 5) {
+                    Text(user?.displayName ?? "")
+                        .font(AppTypography.cardTitle(size: 20))
+                        .foregroundStyle(InkMockup.textPrimary)
+                    if user?.isVerified == true {
+                        VerifiedSeal(size: 15)
+                    }
+                }
                 if let username = user?.username {
                     Text("@\(username)")
                         .font(AppTypography.profileLabel())

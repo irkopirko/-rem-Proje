@@ -41,25 +41,29 @@ struct ProductImageView: View {
     }
 }
 
-/// Kaydırmalı ürün görsel galerisi.
+/// Kaydırmalı ürün görsel galerisi. TabView kullanmaz; dikey sayfa kaydırmasını bozmasın.
 struct ProductGalleryView: View {
     let images: [ProductImageDTO]
     var height: CGFloat = 280
-    @State private var selection = 0
 
     var body: some View {
         Group {
             if images.isEmpty {
                 ProductImageView(url: nil)
+            } else if images.count == 1 {
+                ProductImageView(url: images[0].resolvedURL)
             } else {
-                TabView(selection: $selection) {
-                    ForEach(Array(images.enumerated()), id: \.offset) { index, image in
-                        ProductImageView(url: image.resolvedURL)
-                            .tag(index)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(Array(images.enumerated()), id: \.offset) { _, image in
+                            ProductImageView(url: image.resolvedURL)
+                                .containerRelativeFrame(.horizontal)
+                                .frame(height: height)
+                        }
                     }
+                    .scrollTargetLayout()
                 }
-                .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .always : .never))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
+                .scrollTargetBehavior(.paging)
             }
         }
         .frame(height: height)

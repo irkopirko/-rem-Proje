@@ -1,6 +1,29 @@
 import PDFKit
 import SwiftUI
 
+struct AcademyGuideRow: View {
+    var locked = false
+
+    var body: some View {
+        HStack {
+            Text("INK AKADEMI Rehberin")
+                .font(AppTypography.cardTitle(size: 17))
+            Spacer()
+            Image(systemName: locked ? "lock.fill" : "chevron.right")
+        }
+        .foregroundStyle(InkMockup.textPrimary)
+        .padding(.horizontal, 18)
+        .frame(minHeight: 60)
+        .glassChrome(radius: 18, emphasized: true)
+        .overlay {
+            if locked {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.black.opacity(0.18))
+            }
+        }
+    }
+}
+
 struct GuidePDFScreen: View {
     @State private var localURL: URL?
     @State private var errorMessage: String?

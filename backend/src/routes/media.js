@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { imageUrl, readImage } from '../services/contentImages.js';
 import { profilePhotoUrl, readProfilePhoto } from '../services/profilePhotos.js';
 import { homeworkSubmissionUrl, readHomeworkSubmission } from '../services/homeworkSubmissions.js';
+import { feedMediaPublicUrl, readFeedMedia } from '../services/feed.js';
 
 const router = Router();
 
@@ -38,6 +39,13 @@ router.get('/profile-photos/:id', async (req, res) => {
   const photo = await readProfilePhoto(req.params.id);
   if (!photo) return res.status(404).end();
   return send(res, photo, profilePhotoUrl(req.params.id, photo.storageKey));
+});
+
+router.get('/feed-media/:id', async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(404).end();
+  const file = await readFeedMedia(req.params.id);
+  if (!file) return res.status(404).end();
+  return send(res, file, feedMediaPublicUrl(req.params.id, file.storageKey));
 });
 
 router.get('/homework-submissions/:id', async (req, res) => {

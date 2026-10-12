@@ -9,7 +9,19 @@ struct LearningAdminService {
     private struct CreatedVideo: Decodable { let video: VideoDTO; let upload: VideoUploadCredentials }
     private struct Credentials: Decodable { let upload: VideoUploadCredentials }
 
-    private struct ModuleBody: Encodable { let title: String; let description: String; let isPublished: Bool }
+    private struct ProgramBody: Encodable {
+        let title: String
+        let description: String
+        let instructorName: String
+        let isPublished: Bool
+    }
+
+    private struct ModuleBody: Encodable {
+        let title: String
+        let description: String
+        let isPublished: Bool
+        let educationProgramId: String?
+    }
     private struct VideoBody: Encodable {
         let title: String
         let description: String
@@ -21,12 +33,51 @@ struct LearningAdminService {
         try await api.request("/v1/crew/modules", authorized: true)
     }
 
+    func createProgram(_ draft: ProgramDraft) async throws -> EducationProgramDTO {
+        struct Resp: Decodable { let program: EducationProgramDTO }
+        let resp: Resp = try await api.request(
+            "/v1/crew/programs",
+            method: "POST",
+            body: ProgramBody(
+                title: draft.title,
+                description: draft.description,
+                instructorName: draft.instructorName,
+                isPublished: draft.isPublished
+            ),
+            authorized: true
+        )
+        return resp.program
+    }
+
+    func updateProgram(id: String, _ draft: ProgramDraft) async throws {
+        let _: OK = try await api.request(
+            "/v1/crew/programs/\(id)",
+            method: "PATCH",
+            body: ProgramBody(
+                title: draft.title,
+                description: draft.description,
+                instructorName: draft.instructorName,
+                isPublished: draft.isPublished
+            ),
+            authorized: true
+        )
+    }
+
+    func deleteProgram(id: String) async throws {
+        let _: OK = try await api.request("/v1/crew/programs/\(id)", method: "DELETE", authorized: true)
+    }
+
     func createModule(_ draft: ModuleDraft) async throws -> ModuleDTO {
         struct Resp: Decodable { let module: ModuleDTO }
         let resp: Resp = try await api.request(
             "/v1/crew/modules",
             method: "POST",
-            body: ModuleBody(title: draft.title, description: draft.description, isPublished: draft.isPublished),
+            body: ModuleBody(
+                title: draft.title,
+                description: draft.description,
+                isPublished: draft.isPublished,
+                educationProgramId: draft.educationProgramId
+            ),
             authorized: true
         )
         return resp.module
@@ -36,7 +87,12 @@ struct LearningAdminService {
         let _: OK = try await api.request(
             "/v1/crew/modules/\(id)",
             method: "PATCH",
-            body: ModuleBody(title: draft.title, description: draft.description, isPublished: draft.isPublished),
+            body: ModuleBody(
+                title: draft.title,
+                description: draft.description,
+                isPublished: draft.isPublished,
+                educationProgramId: draft.educationProgramId
+            ),
             authorized: true
         )
     }

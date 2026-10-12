@@ -22,8 +22,8 @@ enum AcademyRank: String, Codable, Sendable {
     }
 
     static func forLevel(_ level: Int) -> AcademyRank {
-        if level >= 20 { return .usta }
-        if level >= 10 { return .kalfa }
+        if level >= 40 { return .usta }
+        if level >= 15 { return .kalfa }
         return .cirak
     }
 }
@@ -45,6 +45,11 @@ struct LevelProgress: Equatable, Sendable {
 
     var caption: String {
         "\(rank.label)  ·  Seviye \(level)  ·  \(totalXp) XP"
+    }
+
+    /// Others may see rank + level, never XP.
+    var publicCaption: String {
+        "\(rank.label)  ·  Seviye \(level)"
     }
 
     var nextCaption: String {

@@ -45,6 +45,11 @@ struct ProfileAvatarView: View {
                             .padding(size * 0.08)
                             .background(Circle().fill(Color.black))
                             .overlay(Circle().stroke(.white, lineWidth: 2))
+                    } else if frame == .purple {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: max(10, size * 0.30)))
+                            .foregroundStyle(InkMockup.accentPink)
+                            .background(Circle().fill(InkGlass.background.opacity(0.92)))
                     }
                 }
 
@@ -98,6 +103,18 @@ struct ProfileAvatarView: View {
                 .font(.system(size: size * 0.36, weight: .bold))
                 .foregroundStyle(InkMockup.textPrimary)
         }
+    }
+}
+
+/// Ink Akademi Crew ve mor çerçeveli onaylı üyeler (ör. @vuralemekci, @iremcelik).
+struct VerifiedSeal: View {
+    var size: CGFloat = 12
+
+    var body: some View {
+        Image(systemName: "checkmark.seal.fill")
+            .font(.system(size: size))
+            .foregroundStyle(InkMockup.accentPink)
+            .accessibilityLabel("Onaylı üye")
     }
 }
 
@@ -166,7 +183,7 @@ struct EditableProfileAvatar: View {
                 initials: user?.initials ?? "",
                 size: size,
                 frame: user?.avatarFrame ?? .gray,
-                rank: user?.levelProgress.rank,
+                rank: user?.showsStudentRank == true ? user?.levelProgress.rank : nil,
                 showsCameraBadge: true,
                 isBusy: isWorking
             )

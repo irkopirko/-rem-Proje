@@ -7,6 +7,7 @@ struct AssignmentsListView: View {
     let container: DIContainer
     @State private var catalog = CatalogService()
     @State private var items: [HomeworkAssignmentDTO] = []
+    @State private var showPaywall = false
 
     private var incomplete: [HomeworkAssignmentDTO] {
         items.filter { $0.status == "pending" || $0.status == "graded_revise" }
@@ -59,6 +60,14 @@ struct AssignmentsListView: View {
             .task {
                 items = (try? await catalog.fetchHomework()) ?? []
             }
+            .overlay {
+                if showPaywall {
+                    ZStack {
+                        Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { showPaywall = false }
+                        MembershipPaywallSheet { showPaywall = false }
+                    }
+                }
+            }
         }
     }
 
@@ -76,18 +85,35 @@ struct AssignmentsListView: View {
         } else {
             VStack(spacing: 10) {
                 ForEach(list) { item in
-                    NavigationLink {
-                        HomeworkDetailView(item: item, catalog: catalog) {
-                            items = (try? await catalog.fetchHomework()) ?? items
+                    if item.isLocked(for: container.sessionUser) {
+                        Button { showPaywall = true } label: {
+                            homeworkLabel(item, showStatus: showStatus, locked: true)
                         }
-                    } label: {
-                        InkMockHomeworkPill(
-                            title: item.title,
-                            subtitle: showStatus ? statusLabel(item) : nil
-                        )
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink {
+                            HomeworkDetailView(item: item, catalog: catalog) {
+                                items = (try? await catalog.fetchHomework()) ?? items
+                            }
+                        } label: {
+                            homeworkLabel(item, showStatus: showStatus, locked: false)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+            }
+        }
+    }
+
+    private func homeworkLabel(_ item: HomeworkAssignmentDTO, showStatus: Bool, locked: Bool) -> some View {
+        HStack(spacing: 10) {
+            InkMockHomeworkPill(
+                title: item.title,
+                subtitle: locked ? "Üyelik ile açılır" : (item.isPastDue ? "Süresi doldu" : (showStatus ? statusLabel(item) : nil))
+            )
+            if locked {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(InkMockup.accentPink)
             }
         }
     }
@@ -107,18 +133,29 @@ struct HomeworkDetailView: View {
     let catalog: CatalogService
     var onSubmitted: (() async -> Void)? = nil
 
-    @State private var picked: HomeworkPickedFile?
-    @State private var pickerItem: PhotosPickerItem?
+    @State private var picked: [HomeworkPickedFile] = []
+    @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
     @State private var showSourcePicker = false
     @State private var showPhotosPicker = false
     @State private var isUploading = false
+    @State private var uploadIndex = 0
     @State private var errorMessage: String?
     @State private var submitted = false
 
     private var canUpload: Bool {
-        item.status == "pending" || item.status == "graded_revise"
+        (item.status == "pending" || item.status == "graded_revise") && !item.isPastDue
     }
+
+    private var existingBytes: Int {
+        item.submittedFiles.reduce(0) { $0 + ($1.size ?? 0) }
+    }
+
+    private var pickedBytes: Int {
+        picked.reduce(0) { $0 + $1.byteCount }
+    }
+
+    private var totalBytes: Int { existingBytes + pickedBytes }
 
     var body: some View {
         ScrollView {
@@ -129,9 +166,16 @@ struct HomeworkDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let due = HomeworkDateFormat.display(item.dueAt) {
-                    Label("Son teslim: \(due)", systemImage: "calendar")
+                    Label(item.isPastDue ? "Süresi doldu: \(due)" : "Son teslim: \(due)", systemImage: item.isPastDue ? "calendar.badge.exclamationmark" : "calendar")
                         .font(AppTypography.mono(size: 12))
-                        .foregroundStyle(InkMockup.captionColor)
+                        .foregroundStyle(item.isPastDue ? Color.inkError : InkMockup.captionColor)
+                }
+
+                if item.isPastDue && (item.status == "pending" || item.status == "graded_revise") {
+                    Text("Teslim tarihi geçtiği için bu ödeve artık dosya yüklenemez.")
+                        .font(AppTypography.body(size: 14))
+                        .foregroundStyle(Color.inkError)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if !item.gallery.isEmpty {
@@ -145,7 +189,9 @@ struct HomeworkDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if submitted || item.status == "submitted" || item.status == "grading" {
-                    Text("Ödeviniz gönderildi. Değerlendiriyoruz.")
+                    Text(item.submittedFiles.count > 1
+                         ? "Ödeviniz \(item.submittedFiles.count) dosya ile gönderildi. Değerlendiriyoruz."
+                         : "Ödeviniz gönderildi. Değerlendiriyoruz.")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.inkWarning)
                 }
@@ -155,30 +201,59 @@ struct HomeworkDetailView: View {
                         .font(.headline)
                 }
 
-                if canUpload && !submitted {
-                    Button { showSourcePicker = true } label: {
-                        VStack(spacing: 8) {
-                            Text("Dosya")
-                                .font(AppTypography.cardTitle(size: 17))
-                                .foregroundStyle(InkMockup.textPrimary)
-                            Text(picked?.name ?? "PNG, JPEG, JPG, PDF")
-                                .font(AppTypography.caption())
-                                .foregroundStyle(InkMockup.captionColor)
-                                .multilineTextAlignment(.center)
+                if !item.submittedFiles.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Yüklü dosyalar")
+                            .font(AppTypography.caption())
+                            .foregroundStyle(InkMockup.captionColor)
+                        ForEach(item.submittedFiles) { file in
+                            if let url = file.resolvedURL {
+                                Link(destination: url) {
+                                    fileRow(name: file.name ?? "Dosya", bytes: file.size, systemImage: "paperclip")
+                                }
+                            } else {
+                                fileRow(name: file.name ?? "Dosya", bytes: file.size, systemImage: "paperclip")
+                            }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 140)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [8]))
-                                .foregroundStyle(InkMockup.captionColor.opacity(0.5))
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .confirmationDialog("Dosya seç", isPresented: $showSourcePicker, titleVisibility: .hidden) {
-                        Button("Fotoğraf") { showPhotosPicker = true }
-                        Button("Dosyalar") { showFileImporter = true }
-                        Button("Vazgeç", role: .cancel) {}
+                }
+
+                if canUpload && !submitted {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(picked) { file in
+                            fileRow(name: file.name, bytes: file.byteCount, systemImage: file.contentType.contains("pdf") ? "doc.fill" : "photo") {
+                                picked.removeAll { $0.id == file.id }
+                            }
+                        }
+
+                        Button { showSourcePicker = true } label: {
+                            VStack(spacing: 8) {
+                                Text(picked.isEmpty ? "Dosya ekle" : "Başka dosya ekle")
+                                    .font(AppTypography.cardTitle(size: 17))
+                                    .foregroundStyle(InkMockup.textPrimary)
+                                Text("PNG, JPEG, JPG, PDF · toplam en fazla 2 GB")
+                                    .font(AppTypography.caption())
+                                    .foregroundStyle(InkMockup.captionColor)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 120)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [8]))
+                                    .foregroundStyle(InkMockup.captionColor.opacity(0.5))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .confirmationDialog("Dosya seç", isPresented: $showSourcePicker, titleVisibility: .hidden) {
+                            Button("Fotoğraf") { showPhotosPicker = true }
+                            Button("Dosyalar") { showFileImporter = true }
+                            Button("Vazgeç", role: .cancel) {}
+                        }
+
+                        Text("Toplam \(HomeworkPickedFile.byteLabel(totalBytes)) / 2 GB")
+                            .font(AppTypography.caption())
+                            .foregroundStyle(InkMockup.captionColor)
                     }
 
                     if let errorMessage {
@@ -187,8 +262,11 @@ struct HomeworkDetailView: View {
                             .foregroundStyle(Color.inkError)
                     }
 
-                    InkMockPrimaryButton(title: picked == nil ? "Dosya seç" : "Yükle", isLoading: isUploading) {
-                        if picked == nil {
+                    InkMockPrimaryButton(
+                        title: picked.isEmpty ? "Dosya seç" : (isUploading ? "Yükleniyor \(uploadIndex)/\(picked.count)" : "Yükle"),
+                        isLoading: isUploading
+                    ) {
+                        if picked.isEmpty {
                             showSourcePicker = true
                         } else {
                             Task { await upload() }
@@ -202,33 +280,90 @@ struct HomeworkDetailView: View {
         }
         .studentScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
-        .photosPicker(isPresented: $showPhotosPicker, selection: $pickerItem, matching: .images)
-        .fileImporter(isPresented: $showFileImporter, allowedContentTypes: HomeworkPickedFile.allowedTypes) { result in
+        .photosPicker(isPresented: $showPhotosPicker, selection: $pickerItems, maxSelectionCount: 30, matching: .images)
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: HomeworkPickedFile.allowedTypes,
+            allowsMultipleSelection: true
+        ) { result in
             switch result {
-            case .success(let url):
-                do { picked = try HomeworkPickedFile.load(from: url) }
-                catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Dosya okunamadı." }
+            case .success(let urls):
+                for url in urls { addPicked(result: Result { try HomeworkPickedFile.load(from: url) }) }
             case .failure:
                 errorMessage = "Dosya seçilemedi."
             }
         }
-        .onChange(of: pickerItem) { _, item in
-            guard let item else { return }
+        .onChange(of: pickerItems) { _, items in
+            guard !items.isEmpty else { return }
             Task {
-                do { picked = try await HomeworkPickedFile.load(from: item) }
-                catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Fotoğraf okunamadı." }
-                pickerItem = nil
+                for item in items {
+                    do { try addPicked(try await HomeworkPickedFile.load(from: item)) }
+                    catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Fotoğraf okunamadı." }
+                }
+                pickerItems = []
             }
         }
     }
 
+    private func fileRow(name: String, bytes: Int?, systemImage: String, onRemove: (() -> Void)? = nil) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundStyle(InkMockup.accentPink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(AppTypography.body(size: 14))
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .lineLimit(1)
+                if let bytes {
+                    Text(HomeworkPickedFile.byteLabel(bytes))
+                        .font(AppTypography.caption())
+                        .foregroundStyle(InkMockup.captionColor)
+                }
+            }
+            Spacer(minLength: 0)
+            if let onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(InkMockup.captionColor)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func addPicked(result: Result<HomeworkPickedFile, Error>) {
+        switch result {
+        case .success(let file):
+            do { try addPicked(file) }
+            catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "Dosya eklenemedi." }
+        case .failure(let error):
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "Dosya okunamadı."
+        }
+    }
+
+    private func addPicked(_ file: HomeworkPickedFile) throws {
+        if existingBytes + pickedBytes + file.byteCount > HomeworkPickedFile.maxTotalBytes {
+            throw HomeworkPickedFile.FileError.tooLarge
+        }
+        picked.append(file)
+        errorMessage = nil
+    }
+
     private func upload() async {
-        guard let picked else { return }
+        guard !picked.isEmpty else { return }
         isUploading = true
+        uploadIndex = 0
         errorMessage = nil
         defer { isUploading = false }
         do {
-            try await catalog.submitHomework(assignmentId: item.assignmentId, data: picked.data, contentType: picked.contentType)
+            let queue = picked
+            for (index, file) in queue.enumerated() {
+                uploadIndex = index + 1
+                try await catalog.uploadHomeworkFile(assignmentId: item.assignmentId, file: file)
+                picked.removeAll { $0.id == file.id }
+            }
+            try await catalog.finalizeHomework(assignmentId: item.assignmentId)
             submitted = true
             _ = try? await catalog.fetchBadgeProgress()
             await onSubmitted?()
@@ -238,12 +373,14 @@ struct HomeworkDetailView: View {
     }
 }
 
-private struct HomeworkPickedFile {
+struct HomeworkPickedFile: Identifiable {
     static let allowedTypes: [UTType] = [.png, .jpeg, .pdf]
-    static let maxBytes = 10 * 1024 * 1024
+    static let maxTotalBytes = 2 * 1024 * 1024 * 1024
 
+    let id = UUID()
     let name: String
-    let data: Data
+    let fileURL: URL
+    let byteCount: Int
     let contentType: String
 
     enum FileError: LocalizedError {
@@ -254,40 +391,58 @@ private struct HomeworkPickedFile {
         var errorDescription: String? {
             switch self {
             case .unsupported: return "Sadece PNG, JPEG, JPG veya PDF yükleyebilirsin."
-            case .tooLarge: return "Dosya en fazla 10 MB olabilir."
+            case .tooLarge: return "Dosyaların toplamı en fazla 2 GB olabilir."
             case .unreadable: return "Dosya okunamadı."
             }
         }
     }
 
+    static func byteLabel(_ bytes: Int) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: Int64(bytes))
+    }
+
     static func load(from url: URL) throws -> Self {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
-        let data = try Data(contentsOf: url)
-        return try make(name: url.lastPathComponent, data: data, type: UTType(filenameExtension: url.pathExtension))
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        let size = values.fileSize ?? 0
+        let header = try readHeader(url)
+        let mime = try detectMime(header: header, type: UTType(filenameExtension: url.pathExtension), data: nil)
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("hw-\(UUID().uuidString)-\(url.lastPathComponent)")
+        try FileManager.default.copyItem(at: url, to: dest)
+        return Self(name: url.lastPathComponent, fileURL: dest, byteCount: size, contentType: mime)
     }
 
     static func load(from item: PhotosPickerItem) async throws -> Self {
         guard let data = try await item.loadTransferable(type: Data.self) else { throw FileError.unreadable }
-        if let jpeg = HomeworkPickedFile.normalizedImage(data) {
-            return try make(name: "odev.jpg", data: jpeg, type: .jpeg)
-        }
-        throw FileError.unsupported
+        guard let jpeg = normalizedImage(data) else { throw FileError.unsupported }
+        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("hw-\(UUID().uuidString).jpg")
+        try jpeg.write(to: dest)
+        return Self(name: "odev.jpg", fileURL: dest, byteCount: jpeg.count, contentType: "image/jpeg")
     }
 
-    private static func make(name: String, data: Data, type: UTType?) throws -> Self {
-        guard data.count <= maxBytes else { throw FileError.tooLarge }
-        if type?.conforms(to: .pdf) == true || data.starts(with: [0x25, 0x50, 0x44, 0x46]) {
-            return Self(name: name, data: data, contentType: "application/pdf")
+    private static func readHeader(_ url: URL) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        return handle.readData(ofLength: 16)
+    }
+
+    private static func detectMime(header: Data, type: UTType?, data: Data?) throws -> String {
+        if type?.conforms(to: .pdf) == true || header.starts(with: [0x25, 0x50, 0x44, 0x46]) {
+            return "application/pdf"
         }
-        if type?.conforms(to: .png) == true || data.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
-            return Self(name: name, data: data, contentType: "image/png")
+        if type?.conforms(to: .png) == true || header.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
+            return "image/png"
         }
-        if type?.conforms(to: .jpeg) == true || (data.count > 2 && data[0] == 0xFF && data[1] == 0xD8) {
-            return Self(name: name, data: data, contentType: "image/jpeg")
+        if type?.conforms(to: .jpeg) == true || (header.count > 2 && header[0] == 0xFF && header[1] == 0xD8) {
+            return "image/jpeg"
         }
-        if let jpeg = normalizedImage(data) {
-            return Self(name: name, data: jpeg, contentType: "image/jpeg")
+        if let data, normalizedImage(data) != nil {
+            return "image/jpeg"
         }
         throw FileError.unsupported
     }

@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { verifyAccessToken } from '../utils/jwt.js';
 import { avatarFrame, isBlockedMembership, isStaff } from './membership.js';
 import { quietEvaluate } from './badges.js';
+import { publicLevel } from './levels.js';
 
 export const MAX_MESSAGE_LENGTH = 2000;
 const AUTH_TIMEOUT_MS = 10_000;
@@ -27,7 +28,7 @@ export function messageDTO(row) {
     role: row.role,
     photoUrl: row.profile_photo_url ?? null,
     frame: avatarFrame(row),
-    xp: Number(row.xp || 0),
+    ...publicLevel(row.xp, staff),
     body: row.body,
     createdAt: new Date(row.created_at).toISOString(),
   };

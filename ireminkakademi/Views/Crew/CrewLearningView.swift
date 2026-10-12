@@ -8,10 +8,12 @@ import UniformTypeIdentifiers
 
 struct CrewLearningView: View {
     private let service = LearningAdminService()
+    @State private var programs: [EducationProgramDTO] = []
     @State private var modules: [ModuleDTO] = []
     @State private var videoServiceConfigured = true
     @State private var didLoad = false
-    @State private var showNew = false
+    @State private var showNewProgram = false
+    @State private var showNewModule = false
     @State private var pendingDelete: ModuleDTO?
     @State private var errorMessage: String?
     private let uploads = VideoUploadManager.shared
@@ -24,7 +26,7 @@ struct CrewLearningView: View {
                 if !videoServiceConfigured {
                     Section {
                         Label {
-                            Text("Video servisi henüz bağlanmadı. Modül oluşturabilirsin; video yüklemek için Bunny Stream ayarlarının sunucuya girilmesi gerekiyor.")
+                            Text("Video servisi henüz bağlanmadı. Eğitim ve modül oluşturabilirsin; video yüklemek için Bunny Stream ayarlarının sunucuya girilmesi gerekiyor.")
                                 .font(.system(size: 13))
                         } icon: {
                             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -39,28 +41,67 @@ struct CrewLearningView: View {
                     }
                 }
 
-                if modules.isEmpty, didLoad {
+                if programs.isEmpty, modules.isEmpty, didLoad {
                     ContentUnavailableView {
-                        Label("Henüz modül yok", systemImage: "rectangle.stack.badge.play")
+                        Label("Henüz eğitim yok", systemImage: "rectangle.stack.badge.play")
                     } description: {
-                        Text("Başlık ve açıklama ile bir modül oluştur, ardından içine videolarını yükle.")
+                        Text("Önce bir eğitim ekle (Ink Akademi veya başka bir program). Sonra o eğitime modül, modüle de ders videosu ekle.")
                     } actions: {
-                        Button("Modül ekle") { showNew = true }
+                        Button("Eğitim ekle") { showNewProgram = true }
                             .buttonStyle(.borderedProminent)
                             .tint(.black)
                     }
                 } else {
-                    Section {
-                        ForEach(modules) { module in
+                    ForEach(programs) { program in
+                        Section {
                             NavigationLink {
-                                CrewModuleDetailView(module: module, videoServiceConfigured: videoServiceConfigured) {
-                                    Task { await load() }
-                                }
+                                CrewProgramEditorView(existing: program) { Task { await load() } }
                             } label: {
-                                moduleRow(module)
+                                programRow(program)
                             }
-                            .swipeActions {
-                                Button("Sil", role: .destructive) { pendingDelete = module }
+                            ForEach(modules(in: program)) { module in
+                                NavigationLink {
+                                    CrewModuleDetailView(
+                                        module: module,
+                                        programs: programs,
+                                        videoServiceConfigured: videoServiceConfigured
+                                    ) {
+                                        Task { await load() }
+                                    }
+                                } label: {
+                                    moduleRow(module)
+                                }
+                                .swipeActions {
+                                    Button("Sil", role: .destructive) { pendingDelete = module }
+                                }
+                            }
+                        } header: {
+                            Text("\(program.numberLabel). \(program.title)")
+                                .textCase(nil)
+                        }
+                    }
+
+                    let orphans = modules.filter { module in
+                        guard let id = module.educationProgramId else { return true }
+                        return !programs.contains(where: { $0.id == id })
+                    }
+                    if !orphans.isEmpty {
+                        Section("Diğer") {
+                            ForEach(orphans) { module in
+                                NavigationLink {
+                                    CrewModuleDetailView(
+                                        module: module,
+                                        programs: programs,
+                                        videoServiceConfigured: videoServiceConfigured
+                                    ) {
+                                        Task { await load() }
+                                    }
+                                } label: {
+                                    moduleRow(module)
+                                }
+                                .swipeActions {
+                                    Button("Sil", role: .destructive) { pendingDelete = module }
+                                }
                             }
                         }
                     }
@@ -69,11 +110,20 @@ struct CrewLearningView: View {
             .navigationTitle("Eğitim")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showNew = true } label: { Label("Modül ekle", systemImage: "plus") }
+                    Menu {
+                        Button("Eğitim ekle", systemImage: "rectangle.stack.badge.plus") { showNewProgram = true }
+                        Button("Modül ekle", systemImage: "plus") { showNewModule = true }
+                            .disabled(programs.isEmpty)
+                    } label: {
+                        Label("Ekle", systemImage: "plus")
+                    }
                 }
             }
-            .navigationDestination(isPresented: $showNew) {
-                CrewModuleEditorView(existing: nil) { Task { await load() } }
+            .navigationDestination(isPresented: $showNewProgram) {
+                CrewProgramEditorView(existing: nil) { Task { await load() } }
+            }
+            .navigationDestination(isPresented: $showNewModule) {
+                CrewModuleEditorView(existing: nil, programs: programs) { Task { await load() } }
             }
             .refreshable { await load() }
             .task {
@@ -103,6 +153,28 @@ struct CrewLearningView: View {
         }
     }
 
+    private func modules(in program: EducationProgramDTO) -> [ModuleDTO] {
+        modules.filter { $0.educationProgramId == program.id }
+    }
+
+    private func programRow(_ program: EducationProgramDTO) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(program.title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
+                if program.isPublished == false {
+                    Text("Taslak")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.2), in: Capsule())
+                }
+            }
+            Text("\(program.moduleCount) modül · \(program.videoCount) ders")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
     private func moduleRow(_ module: ModuleDTO) -> some View {
         HStack(spacing: 12) {
             Text(module.numberLabel)
@@ -130,6 +202,7 @@ struct CrewLearningView: View {
     private func load() async {
         do {
             let resp = try await service.fetchModules()
+            programs = resp.programs
             modules = resp.modules
             videoServiceConfigured = resp.videoServiceConfigured
         } catch {
@@ -140,8 +213,145 @@ struct CrewLearningView: View {
 
 // MARK: - Modül düzenleyici
 
+struct CrewProgramEditorView: View {
+    let existing: EducationProgramDTO?
+    let onSaved: () -> Void
+
+    private let service = LearningAdminService()
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var description = ""
+    @State private var instructorName = ""
+    @State private var isPublished = true
+    @State private var isSaving = false
+    @State private var confirmDelete = false
+    @State private var errorMessage: String?
+    @State private var didLoad = false
+
+    private static let descriptionLimit = 10000
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                CrewEditorSection(title: "Eğitim başlığı") {
+                    CrewTextField(placeholder: "Örn. INK AKADEMİ Eğitimi", text: $title, font: .system(size: 18, weight: .semibold))
+                }
+
+                CrewEditorSection(title: "Eğitmen") {
+                    CrewTextField(placeholder: "Örn. Vural Emekçi", text: $instructorName)
+                }
+
+                CrewEditorSection(title: "Açıklama", footer: "Bu eğitim programında neler var, kimlere hitap ediyor…") {
+                    CrewLongTextEditor(placeholder: "Eğitimi anlat…", text: $description, limit: Self.descriptionLimit, minHeight: 220)
+                }
+
+                CrewEditorSection(title: "Görünürlük", footer: "Taslak eğitimler öğrencilere gösterilmez. Modüllerini ekleyip hazır olduğunda yayınlayabilirsin.") {
+                    Toggle("Öğrencilere yayınla", isOn: $isPublished)
+                        .tint(.black)
+                        .padding(14)
+                        .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+
+                if existing == nil {
+                    Label("Kaydettikten sonra bu eğitime modül, modüllere de ders videosu ekleyebilirsin.", systemImage: "rectangle.stack.badge.plus")
+                        .font(.system(size: 13))
+                        .foregroundStyle(InkMockup.captionColor)
+                }
+
+                if let existing {
+                    if (existing.moduleCount) > 0 {
+                        Text("Bu eğitimde \(existing.moduleCount) modül var. Silmek için önce modülleri taşı veya sil.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button("Eğitimi sil", role: .destructive) { confirmDelete = true }
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(existing == nil ? "Yeni eğitim" : "Eğitimi düzenle")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Button("Kaydet") { Task { await save() } }
+                        .fontWeight(.semibold)
+                        .disabled(!canSave)
+                }
+            }
+        }
+        .disabled(isSaving)
+        .onAppear {
+            guard !didLoad else { return }
+            didLoad = true
+            title = existing?.title ?? ""
+            description = existing?.description ?? ""
+            instructorName = existing?.instructorName ?? ""
+            isPublished = existing?.isPublished ?? true
+        }
+        .confirmationDialog("Eğitim kalıcı olarak silinecek.", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Eğitimi sil", role: .destructive) { Task { await deleteProgram() } }
+        }
+        .alert("Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tamam", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && description.count <= Self.descriptionLimit
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+        let draft = ProgramDraft(
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            instructorName: instructorName.trimmingCharacters(in: .whitespacesAndNewlines),
+            isPublished: isPublished
+        )
+        do {
+            if let existing {
+                try await service.updateProgram(id: existing.id, draft)
+            } else {
+                _ = try await service.createProgram(draft)
+            }
+            onSaved()
+            dismiss()
+        } catch {
+            errorMessage = AuthErrorMessage.from(error)
+        }
+    }
+
+    private func deleteProgram() async {
+        guard let existing else { return }
+        do {
+            try await service.deleteProgram(id: existing.id)
+            onSaved()
+            dismiss()
+        } catch {
+            errorMessage = AuthErrorMessage.from(error)
+        }
+    }
+}
+
+// MARK: - Modül düzenleyici
+
 struct CrewModuleEditorView: View {
     let existing: ModuleDTO?
+    var programs: [EducationProgramDTO] = []
     let onSaved: () -> Void
 
     private let service = LearningAdminService()
@@ -149,6 +359,7 @@ struct CrewModuleEditorView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var isPublished = true
+    @State private var educationProgramId = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var didLoad = false
@@ -158,6 +369,21 @@ struct CrewModuleEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                if !programs.isEmpty {
+                    CrewEditorSection(title: "Eğitim", footer: "Bu modül hangi eğitim programının altında görünecek.") {
+                        Picker("Eğitim", selection: $educationProgramId) {
+                            ForEach(programs) { program in
+                                Text(program.title).tag(program.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(.black)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(InkMockup.fieldFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+
                 CrewEditorSection(title: "Modül başlığı") {
                     CrewTextField(placeholder: "Örn. Linework temelleri", text: $title, font: .system(size: 18, weight: .semibold))
                 }
@@ -205,6 +431,7 @@ struct CrewModuleEditorView: View {
             title = existing?.title ?? ""
             description = existing?.description ?? ""
             isPublished = existing?.isPublished ?? true
+            educationProgramId = existing?.educationProgramId ?? programs.first?.id ?? ""
         }
         .alert("Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) {}
@@ -214,7 +441,9 @@ struct CrewModuleEditorView: View {
     }
 
     private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && description.count <= Self.descriptionLimit
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && description.count <= Self.descriptionLimit
+            && (programs.isEmpty || !educationProgramId.isEmpty)
     }
 
     private func save() async {
@@ -223,7 +452,8 @@ struct CrewModuleEditorView: View {
         let draft = ModuleDraft(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-            isPublished: isPublished
+            isPublished: isPublished,
+            educationProgramId: educationProgramId.isEmpty ? nil : educationProgramId
         )
         do {
             if let existing {
@@ -243,6 +473,7 @@ struct CrewModuleEditorView: View {
 
 struct CrewModuleDetailView: View {
     @State var module: ModuleDTO
+    var programs: [EducationProgramDTO] = []
     let videoServiceConfigured: Bool
     let onChanged: () -> Void
 
@@ -300,7 +531,7 @@ struct CrewModuleDetailView: View {
             }
         }
         .navigationDestination(isPresented: $showEditModule) {
-            CrewModuleEditorView(existing: module) {
+            CrewModuleEditorView(existing: module, programs: programs) {
                 onChanged()
                 Task { await reloadModule() }
             }

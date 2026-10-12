@@ -11,14 +11,29 @@ import {
   tusCredentials,
 } from '../services/bunny.js';
 import { refreshStaleProcessing, syncVideoFromBunny, videoDTO } from '../services/videoCatalog.js';
+import {
+  applyDisplayLabels,
+  createProgram,
+  ensureAcademyProgram,
+  nextModuleSort,
+  programDTO,
+} from '../services/programs.js';
 
 const router = Router();
 router.use(requireAuth, requireCrew);
+
+const programSchema = z.object({
+  title: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(10000).optional(),
+  instructorName: z.string().trim().max(160).optional(),
+  isPublished: z.boolean().optional(),
+});
 
 const moduleSchema = z.object({
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10000).optional(),
   isPublished: z.boolean().optional(),
+  educationProgramId: z.string().uuid().optional().nullable(),
 });
 
 const videoSchema = z.object({
@@ -31,6 +46,7 @@ const videoSchema = z.object({
 function moduleDTO(row) {
   return {
     id: row.id,
+    educationProgramId: row.education_program_id ?? null,
     moduleNumber: Number(row.module_number),
     title: row.title,
     description: row.description,
@@ -38,27 +54,131 @@ function moduleDTO(row) {
     isPublished: Boolean(row.is_published),
     videoCount: Number(row.video_count ?? 0),
     readyCount: Number(row.ready_count ?? 0),
+    displayLabel: row.displayLabel || null,
   };
 }
 
+router.get('/programs', async (_req, res) => {
+  const programs = await query(
+    `SELECT p.*,
+            (SELECT COUNT(*) FROM modules m WHERE m.education_program_id = p.id) AS moduleCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id) AS videoCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id AND v.status = 'ready') AS completedCount
+     FROM education_programs p
+     ORDER BY p.sort_order, p.title`
+  );
+  const labeled = applyDisplayLabels(programs, []);
+  return res.json({ programs: labeled.programs.map((row) => programDTO(row)) });
+});
+
+router.post('/programs', async (req, res) => {
+  const parsed = programSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+  const created = await createProgram(parsed.data);
+  await auditLog({
+    actorUserId: req.user.id,
+    action: 'program.create',
+    targetType: 'education_program',
+    targetId: created.id,
+    ip: req.ip,
+  });
+  return res.status(201).json({ program: created });
+});
+
+router.patch('/programs/:id', async (req, res) => {
+  const parsed = programSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+  const { title, description, instructorName, isPublished } = parsed.data;
+  const result = await query(
+    `UPDATE education_programs SET
+       title = COALESCE(?, title),
+       description = COALESCE(?, description),
+       instructor_name = COALESCE(?, instructor_name),
+       is_published = COALESCE(?, is_published)
+     WHERE id = ?`,
+    [
+      title ?? null,
+      description ?? null,
+      instructorName ?? null,
+      isPublished === undefined ? null : isPublished ? 1 : 0,
+      req.params.id,
+    ]
+  );
+  if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
+  await auditLog({
+    actorUserId: req.user.id,
+    action: 'program.update',
+    targetType: 'education_program',
+    targetId: req.params.id,
+    ip: req.ip,
+  });
+  return res.json({ ok: true });
+});
+
+router.delete('/programs/:id', async (req, res) => {
+  const [{ count }] = await query(
+    `SELECT COUNT(*) AS count FROM modules WHERE education_program_id = ?`,
+    [req.params.id]
+  );
+  if (Number(count) > 0) {
+    return res.status(409).json({ error: 'Bu eğitimde modül var. Önce modülleri taşı veya sil.' });
+  }
+  const result = await query(`DELETE FROM education_programs WHERE id = ?`, [req.params.id]);
+  if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
+  await auditLog({
+    actorUserId: req.user.id,
+    action: 'program.delete',
+    targetType: 'education_program',
+    targetId: req.params.id,
+    ip: req.ip,
+  });
+  return res.json({ ok: true });
+});
+
 router.get('/modules', async (_req, res) => {
+  const programs = await query(
+    `SELECT p.*,
+            (SELECT COUNT(*) FROM modules m WHERE m.education_program_id = p.id) AS moduleCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id) AS videoCount,
+            (SELECT COUNT(*) FROM videos v JOIN modules m ON m.id = v.module_id
+              WHERE m.education_program_id = p.id AND v.status = 'ready') AS completedCount
+     FROM education_programs p
+     ORDER BY p.sort_order, p.title`
+  );
   const rows = await query(
     `SELECT m.*,
             (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id) AS video_count,
             (SELECT COUNT(*) FROM videos v WHERE v.module_id = m.id AND v.status = 'ready') AS ready_count
-     FROM modules m ORDER BY m.sort_order, m.module_number`
+     FROM modules m
+     LEFT JOIN education_programs p ON p.id = m.education_program_id
+     ORDER BY COALESCE(p.sort_order, 999), m.sort_order, m.module_number`
   );
-  return res.json({ modules: rows.map(moduleDTO), videoServiceConfigured: isStreamConfigured() });
+  const labeled = applyDisplayLabels(programs, rows);
+  return res.json({
+    programs: labeled.programs.map((row) => programDTO(row)),
+    modules: labeled.modules.map(moduleDTO),
+    videoServiceConfigured: isStreamConfigured(),
+  });
 });
 
 router.post('/modules', async (req, res) => {
   const parsed = moduleSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
   const [{ next }] = await query(`SELECT COALESCE(MAX(module_number), 0) + 1 AS next FROM modules`);
+  const programId = parsed.data.educationProgramId ?? (await ensureAcademyProgram());
+  if (programId) {
+    const [program] = await query(`SELECT id FROM education_programs WHERE id = ? LIMIT 1`, [programId]);
+    if (!program) return res.status(400).json({ error: 'Eğitim bulunamadı' });
+  }
+  const sortOrder = await nextModuleSort(programId);
   const id = uuidv4();
   await query(
-    `INSERT INTO modules (id, module_number, title, description, sort_order, is_published) VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, next, parsed.data.title, parsed.data.description ?? null, Number(next), parsed.data.isPublished === false ? 0 : 1]
+    `INSERT INTO modules (id, education_program_id, module_number, title, description, sort_order, is_published)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, programId, next, parsed.data.title, parsed.data.description ?? null, sortOrder, parsed.data.isPublished === false ? 0 : 1]
   );
   await auditLog({ actorUserId: req.user.id, action: 'module.create', targetType: 'module', targetId: id, ip: req.ip });
   const [row] = await query(`SELECT * FROM modules WHERE id = ?`, [id]);
@@ -68,11 +188,24 @@ router.post('/modules', async (req, res) => {
 router.patch('/modules/:id', async (req, res) => {
   const parsed = moduleSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { title, description, isPublished } = parsed.data;
+  const { title, description, isPublished, educationProgramId } = parsed.data;
+  if (educationProgramId) {
+    const [program] = await query(`SELECT id FROM education_programs WHERE id = ? LIMIT 1`, [educationProgramId]);
+    if (!program) return res.status(400).json({ error: 'Eğitim bulunamadı' });
+  }
   const result = await query(
     `UPDATE modules SET title = COALESCE(?, title), description = COALESCE(?, description),
-       is_published = COALESCE(?, is_published) WHERE id = ?`,
-    [title ?? null, description ?? null, isPublished === undefined ? null : isPublished ? 1 : 0, req.params.id]
+       is_published = COALESCE(?, is_published),
+       education_program_id = CASE WHEN ? THEN ? ELSE education_program_id END
+     WHERE id = ?`,
+    [
+      title ?? null,
+      description ?? null,
+      isPublished === undefined ? null : isPublished ? 1 : 0,
+      educationProgramId ? 1 : 0,
+      educationProgramId ?? null,
+      req.params.id,
+    ]
   );
   if (!result.affectedRows) return res.status(404).json({ error: 'Not found' });
   await auditLog({ actorUserId: req.user.id, action: 'module.update', targetType: 'module', targetId: req.params.id, ip: req.ip });

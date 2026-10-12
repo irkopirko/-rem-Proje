@@ -3,6 +3,7 @@ import SwiftUI
 struct CrewRootView: View {
     let container: DIContainer
     @State private var selected = 0
+    @State private var showCommunity = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,10 +12,29 @@ struct CrewRootView: View {
             tabs
         }
         .background(Color(.systemBackground))
+        .fullScreenCover(isPresented: $showCommunity) {
+            NavigationStack {
+                CommunityFeedView(container: container)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Kapat") { showCommunity = false }
+                        }
+                    }
+            }
+        }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
+            Button { showCommunity = true } label: {
+                Image("HomeChatIcon")
+                    .resizable()
+                    .renderingMode(.original)
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+            }
+            .accessibilityLabel("Topluluk")
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("INK AKADEMI CREW")
                     .font(.system(size: 14, weight: .bold))
@@ -55,9 +75,6 @@ struct CrewRootView: View {
             CrewProductsView()
                 .tabItem { Label("Ürünler", systemImage: "bag.fill") }
                 .tag(3)
-            CrewCommunityView(container: container)
-                .tabItem { Label("Sohbet", systemImage: "bubble.left.and.bubble.right.fill") }
-                .tag(4)
         }
         .tint(Color.inkAccent)
     }
@@ -145,5 +162,7 @@ struct CrewHomeworkItem: Identifiable, Decodable {
     let lastName: String
     let status: String
     var fileUrl: String? = nil
+    var files: [HomeworkFileDTO]? = nil
     var id: String { assignmentId }
+    var submittedFiles: [HomeworkFileDTO] { files ?? [] }
 }

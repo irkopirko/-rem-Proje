@@ -39,6 +39,7 @@ struct StudentMainTabView: View {
                 BadgeEarnedPopup(badge: badge) { unlocks.dismiss() }
             }
         }
+        .xpToastHost()
         .environment(\.inkStudioChrome, true)
         .preferredColorScheme(appearance.colorScheme)
         .task { await refreshBadges() }

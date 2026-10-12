@@ -207,6 +207,17 @@ export async function uploadToStorage(key, buffer, contentType) {
   if (!res.ok) throw new BunnyError(`Bunny Storage upload failed (${res.status})`, res.status);
 }
 
+export async function downloadFromStorage(key) {
+  if (!key || !isStorageConfigured()) return null;
+  const s = storage();
+  const res = await fetch(`https://${s.host}/${s.zone}/${key}`, { headers: { AccessKey: s.apiKey } });
+  if (!res.ok) return null;
+  return {
+    data: Buffer.from(await res.arrayBuffer()),
+    mimeType: res.headers.get('content-type') || 'application/octet-stream',
+  };
+}
+
 export async function deleteFromStorage(key) {
   if (!key || !isStorageConfigured()) return;
   const s = storage();

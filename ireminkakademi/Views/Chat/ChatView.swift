@@ -16,7 +16,7 @@ struct ChatView: View {
                 }
                 .accessibilityLabel("Geri")
                 Spacer()
-                Text("Topluluk")
+                Text("Sohbet")
                     .font(AppTypography.cardTitle(size: 20))
                     .foregroundStyle(InkMockup.textPrimary)
                 Spacer()
@@ -214,7 +214,7 @@ struct CommunityRoomView: View {
             .foregroundStyle(InkMockup.captionColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 5)
-            .background(InkGlass.surface.opacity(0.72), in: Capsule())
+            .glassChrome(radius: 12)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
     }
@@ -225,7 +225,7 @@ struct CommunityRoomView: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isMe { Spacer(minLength: 48) }
             if !isMe {
-                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32, frame: message.avatarFrame, rank: message.rank)
+                ProfileAvatarView(url: message.photoURL, initials: message.isStaff ? "IA" : message.initials, size: 32, frame: message.avatarFrame, rank: message.academyRank)
                     .padding(.bottom, 16)
             }
             VStack(alignment: isMe ? .trailing : .leading, spacing: 3) {
@@ -234,11 +234,14 @@ struct CommunityRoomView: View {
                         Text(message.displayName)
                             .font(AppTypography.profileLabel(size: 13))
                             .foregroundStyle(message.isStaff ? InkMockup.accentPink : InkMockup.captionColor)
-                        if message.isStaff {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(InkMockup.accentPink)
+                        if message.isVerified {
+                            VerifiedSeal(size: 11)
                         }
+                    }
+                    if let publicRankCaption = message.publicRankCaption {
+                        Text(publicRankCaption)
+                            .font(AppTypography.mono(size: 10))
+                            .foregroundStyle(InkMockup.captionColor)
                     }
                 }
                 Text(message.body)
@@ -249,7 +252,7 @@ struct CommunityRoomView: View {
                     .foregroundStyle(isMe ? .white : InkMockup.textPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
-                        if message.isStaff, !isMe {
+                        if message.isVerified, !isMe {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(InkMockup.accentPink.opacity(0.5), lineWidth: 1)
                         }

@@ -1,17 +1,19 @@
 import SwiftUI
 
-private enum ShopRoute: Hashable {
-    case category(String)
-    case product(String)
+private struct ShopCategoryPage: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let coverUrl: String?
+    let products: [ProductDTO]
 }
 
 struct ProductsListView: View {
     let container: DIContainer
     @State private var catalog = CatalogService()
-    @State private var data: ProductsResponse?
+    @State private var pages: [ShopCategoryPage] = []
     @State private var loadError: String?
     @State private var isLoading = false
-    @State private var path: [ShopRoute] = []
+    @State private var path = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -19,58 +21,40 @@ struct ProductsListView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     InkMockSectionTitle(text: "Ürünler")
 
-                    if let categories = data?.categories {
-                        if categories.isEmpty {
+                    if pages.isEmpty {
+                        if let loadError {
+                            shopMessage(loadError)
+                        } else if isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 40)
+                        } else {
                             shopMessage("Henüz yayınlanmış ürün kategorisi yok.")
                         }
-                        ForEach(categories, id: \.id) { category in
-                            ProductCategoryRow(
-                                category: category,
-                                products: products(in: category.id),
-                                onOpen: { path.append(.category($0)) }
-                            )
-                        }
-                    } else if let loadError {
-                        shopMessage(loadError)
                     } else {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
+                        ForEach(pages) { page in
+                            NavigationLink(value: page) {
+                                ProductCategoryCard(page: page)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 .padding(.horizontal, InkMockup.screenHorizontal)
                 .padding(.top, 12)
-                .padding(.bottom, 24)
+                .padding(.bottom, 40)
             }
             .studentScreenBackground()
+            .scrollBounceBehavior(.always)
             .navigationBarHidden(true)
             .refreshable { await load() }
-            .navigationDestination(for: ShopRoute.self) { route in
-                switch route {
-                case .category(let id):
-                    if let category = data?.categories.first(where: { $0.id == id }) {
-                        ProductCategoryDetailView(category: category, products: products(in: id)) { productId in
-                            path.append(.product(productId))
-                        }
-                    } else {
-                        shopMessage("Kategori bulunamadı.")
-                    }
-                case .product(let id):
-                    if let product = data?.products.first(where: { $0.id == id }) {
-                        ProductDetailView(product: product)
-                    } else {
-                        shopMessage("Ürün bulunamadı.")
-                    }
-                }
+            .navigationDestination(for: ShopCategoryPage.self) { page in
+                ProductCategoryDetailView(title: page.title, products: page.products)
             }
-            .task { if data == nil { await load() } }
-        }
-    }
-
-    private func products(in categoryId: String) -> [ProductDTO] {
-        let needle = categoryId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return (data?.products ?? []).filter {
-            $0.categoryId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == needle
+            .navigationDestination(for: ProductDTO.self) { product in
+                ProductDetailView(product: product)
+            }
+            .task { if pages.isEmpty { await load() } }
         }
     }
 
@@ -79,10 +63,19 @@ struct ProductsListView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            data = try await catalog.fetchProducts()
+            let data = try await catalog.fetchProducts()
+            pages = data.categories.enumerated().map { index, category in
+                let products = category.products ?? []
+                return ShopCategoryPage(
+                    id: "\(index)|\(category.id)|\(category.name)",
+                    title: category.name,
+                    coverUrl: category.imageUrl,
+                    products: products
+                )
+            }
             loadError = nil
         } catch {
-            if data == nil { loadError = error.localizedDescription }
+            if pages.isEmpty { loadError = error.localizedDescription }
         }
     }
 
@@ -95,63 +88,55 @@ struct ProductsListView: View {
     }
 }
 
-private struct ProductCategoryRow: View {
-    let category: ProductCategoryDTO
-    let products: [ProductDTO]
-    let onOpen: (String) -> Void
+private struct ProductCategoryCard: View {
+    let page: ShopCategoryPage
 
     var body: some View {
-        Button {
-            onOpen(category.id)
-        } label: {
-            Color.clear
-                .frame(height: 128)
-                .overlay {
-                    if let coverURL {
-                        ProductImageView(url: coverURL)
-                            .overlay(LinearGradient(colors: [.clear, InkGlass.background.opacity(0.82)], startPoint: .center, endPoint: .bottom))
-                    } else {
-                        InkMockup.cardFill
-                    }
+        Color.clear
+            .frame(height: 128)
+            .overlay {
+                if let coverURL {
+                    ProductImageView(url: coverURL)
+                        .overlay(LinearGradient(colors: [.clear, InkGlass.background.opacity(0.82)], startPoint: .center, endPoint: .bottom))
+                } else {
+                    InkMockup.cardFill
                 }
-                .overlay(alignment: .bottomLeading) {
-                    Text(AppTypography.turkishUppercased(category.name))
-                        .font(AppTypography.cardTitle())
-                        .tracking(0.8)
-                        .foregroundStyle(InkMockup.textPrimary)
-                        .padding(16)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
-                )
-        }
-        .buttonStyle(.plain)
+            }
+            .overlay(alignment: .bottomLeading) {
+                Text(AppTypography.turkishUppercased(page.title))
+                    .font(AppTypography.cardTitle())
+                    .tracking(0.8)
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .padding(16)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: InkMockup.cardRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
+            )
     }
 
     private var coverURL: URL? {
-        if let raw = category.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+        if let raw = page.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
             if raw.hasPrefix("http://") || raw.hasPrefix("https://") || raw.hasPrefix("file://") {
                 return URL(string: raw)
             }
             return URL(string: raw, relativeTo: APIConfiguration.baseURL)?.absoluteURL
         }
-        return products.first { !$0.gallery.isEmpty }?.gallery.first?.resolvedURL
+        return page.products.first { !$0.gallery.isEmpty }?.gallery.first?.resolvedURL
     }
 }
 
 struct ProductCategoryDetailView: View {
-    let category: ProductCategoryDTO
+    let title: String
     let products: [ProductDTO]
-    var onOpenProduct: (String) -> Void = { _ in }
 
     let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(AppTypography.turkishUppercased(category.name))
+                Text(AppTypography.turkishUppercased(title))
                     .font(AppTypography.sectionHeading(size: 24))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -162,42 +147,40 @@ struct ProductCategoryDetailView: View {
                         .padding(.vertical, 16)
                 } else {
                     LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(products, id: \.id) { product in
-                            ProductGridItem(product: product, onOpen: onOpenProduct)
+                        ForEach(products) { product in
+                            NavigationLink(value: product) {
+                                ProductGridItem(product: product)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
             }
             .padding(.horizontal, InkMockup.screenHorizontal)
             .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.bottom, 40)
         }
         .studentScreenBackground()
+        .scrollBounceBehavior(.always)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 private struct ProductGridItem: View {
     let product: ProductDTO
-    let onOpen: (String) -> Void
 
     var body: some View {
-        Button {
-            onOpen(product.id)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Color.clear
-                    .frame(height: 140)
-                    .overlay { ProductImageView(url: product.gallery.first?.resolvedURL) }
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                Text(product.name)
-                    .font(AppTypography.cardTitle(size: 15))
-                    .foregroundStyle(InkMockup.textPrimary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Color.clear
+                .frame(height: 140)
+                .overlay { ProductImageView(url: product.gallery.first?.resolvedURL) }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Text(product.name)
+                .font(AppTypography.cardTitle(size: 15))
+                .foregroundStyle(InkMockup.textPrimary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -215,7 +198,7 @@ struct ProductDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
 
                 if let explanation = product.explanation, !explanation.isEmpty {
-                        Text(explanation)
+                    Text(explanation)
                         .font(AppTypography.body())
                         .foregroundStyle(InkMockup.captionColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,9 +228,11 @@ struct ProductDetailView: View {
                 }
             }
             .padding(.horizontal, InkMockup.screenHorizontal)
-            .padding(.vertical, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 48)
         }
         .studentScreenBackground()
+        .scrollBounceBehavior(.always)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

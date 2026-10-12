@@ -4,14 +4,30 @@ struct ModulesListView: View {
     let container: DIContainer
     @State private var catalog = CatalogService()
     @State private var data: CatalogResponse?
+    @State private var programs: [EducationProgramDTO] = []
     @State private var loadError: String?
     @State private var isLoading = false
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
                     InkMockSectionTitle(text: "Eğitimler")
+
+                    if container.sessionUser?.canSeeHomework == true {
+                        NavigationLink {
+                            GuidePDFScreen()
+                        } label: {
+                            AcademyGuideRow(locked: false)
+                        }
+                        .buttonStyle(.plain)
+                    } else if container.sessionUser?.role == .student {
+                        Button { showPaywall = true } label: {
+                            AcademyGuideRow(locked: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
 
                     if let live = data?.liveSession, let url = URL(string: live.streamUrl) {
                         Link(destination: url) {
@@ -43,11 +59,18 @@ struct ModulesListView: View {
                         .buttonStyle(.plain)
                     }
 
-                    InkMockSubheading(text: "Modüller")
+                    InkMockSubheading(text: programs.isEmpty ? "Modüller" : "Eğitim programları")
 
-                    if let modules = data?.modules {
+                    if !programs.isEmpty {
+                        ForEach(programs) { program in
+                            NavigationLink(value: program) {
+                                EducationProgramCard(program: program)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } else if let modules = data?.modules {
                         if modules.isEmpty {
-                            emptyState("Henüz yayınlanmış modül yok.")
+                            emptyState("Henüz yayınlanmış eğitim yok.")
                         }
                         ForEach(modules) { module in
                             NavigationLink(value: module) {
@@ -67,6 +90,9 @@ struct ModulesListView: View {
             }
             .studentScreenBackground()
             .refreshable { await load() }
+            .navigationDestination(for: EducationProgramDTO.self) { program in
+                EducationProgramDetailView(program: program, container: container)
+            }
             .navigationDestination(for: ModuleDTO.self) { module in
                 ModuleDetailView(module: module, container: container)
             }
@@ -74,6 +100,14 @@ struct ModulesListView: View {
                 VideoPlayerScreen(video: video, reportsProgress: container.sessionUser?.role == .student)
             }
             .task { if data == nil { await load() } }
+            .overlay {
+                if showPaywall {
+                    ZStack {
+                        Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { showPaywall = false }
+                        MembershipPaywallSheet { showPaywall = false }
+                    }
+                }
+            }
         }
     }
 
@@ -82,10 +116,13 @@ struct ModulesListView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            data = try await catalog.fetchCatalog()
+            async let catalogTask = catalog.fetchCatalog()
+            async let programsTask = catalog.fetchPrograms()
+            data = try await catalogTask
+            programs = (try? await programsTask) ?? []
             loadError = nil
         } catch {
-            if data == nil { loadError = error.localizedDescription }
+            if data == nil && programs.isEmpty { loadError = error.localizedDescription }
         }
     }
 
@@ -98,7 +135,55 @@ struct ModulesListView: View {
     }
 }
 
-private struct ModuleCard: View {
+struct EducationProgramCard: View {
+    let program: EducationProgramDTO
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                Text(program.numberLabel)
+                    .font(AppTypography.monoMedium(size: 13))
+                    .tracking(0.8)
+                    .foregroundStyle(InkMockup.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(InkGlass.burgundy.opacity(0.7)))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(program.title)
+                        .font(AppTypography.cardTitle())
+                        .foregroundStyle(InkMockup.textPrimary)
+                        .multilineTextAlignment(.leading)
+                    Text(program.subtitle)
+                        .font(AppTypography.caption())
+                        .foregroundStyle(InkMockup.captionColor)
+                    if let instructor = program.instructorName, !instructor.isEmpty {
+                        Text(instructor)
+                            .font(AppTypography.monoMedium(size: 11))
+                            .foregroundStyle(InkMockup.accentPink)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").foregroundStyle(InkMockup.captionColor)
+            }
+
+            if let desc = program.description, !desc.isEmpty {
+                Text(desc)
+                    .font(AppTypography.body(size: 14))
+                    .foregroundStyle(InkMockup.captionColor)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+
+            if program.videoCount > 0 {
+                ProgressView(value: Double(program.completedCount), total: Double(max(program.videoCount, 1)))
+                    .tint(InkMockup.accentPink)
+            }
+        }
+        .padding(16)
+        .glassChrome()
+    }
+}
+
+struct ModuleCard: View {
     let module: ModuleDTO
 
     var body: some View {

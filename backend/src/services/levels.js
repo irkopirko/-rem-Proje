@@ -1,6 +1,6 @@
 export function rankForLevel(level) {
-  if (level >= 20) return 'usta';
-  if (level >= 10) return 'kalfa';
+  if (level >= 40) return 'usta';
+  if (level >= 15) return 'kalfa';
   return 'cirak';
 }
 
@@ -14,6 +14,13 @@ export function xpRequiredForLevel(level) {
   let need = 100;
   for (let i = 1; i < level; i += 1) need = Math.round(need * 1.25);
   return need;
+}
+
+/** Public profile: rank + level only. Never leak XP. */
+export function publicLevel(xp, staff = false) {
+  if (staff) return { level: null, rank: null, rankLabel: null };
+  const progress = levelFromXp(xp);
+  return { level: progress.level, rank: progress.rank, rankLabel: progress.rankLabel };
 }
 
 export function levelFromXp(xp) {

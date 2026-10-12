@@ -25,6 +25,10 @@ enum AuthErrorMessage {
                 return "Sadece PNG, JPEG, JPG veya PDF yükleyebilirsin."
             case .server(let message) where message.localizedCaseInsensitiveContains("payload too large"):
                 return "Dosya en fazla 10 MB olabilir."
+            case .server(let message) where message.localizedCaseInsensitiveContains("teslim tarihi"):
+                return "Teslim tarihi geçti. Bu ödeve artık yükleme yapılamaz."
+            case .server(let message) where message.localizedCaseInsensitiveContains("çok sık") || message.localizedCaseInsensitiveContains("çok hızlı"):
+                return message
             default:
                 return api.errorDescription ?? "Bir hata oluştu."
             }

@@ -82,7 +82,23 @@ final class InkAPIClient {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 60 * 10
         return try await send(req, authorized: true) { try await self.session.upload(for: $0, from: data) }
+    }
+
+    /// Büyük medyayı diskten API’ye yükler (videoyu belleğe almadan).
+    func uploadFile<T: Decodable>(_ path: String, fileURL: URL, contentType: String) async throws -> T {
+        guard let url = URL(string: path, relativeTo: APIConfiguration.baseURL) else { throw InkAPIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 60 * 15
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 120
+        config.timeoutIntervalForResource = 60 * 15
+        let longSession = URLSession(configuration: config)
+        return try await send(req, authorized: true) { try await longSession.upload(for: $0, fromFile: fileURL) }
     }
 
     /// Büyük dosyayı diskten doğrudan hedef adrese yollar (Railway üzerinden geçmez).

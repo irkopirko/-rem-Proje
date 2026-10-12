@@ -132,11 +132,34 @@ async function loadStats(userId) {
 
 export const XP_PER_VIDEO = 10;
 export const XP_PER_HOMEWORK_SUBMIT = 10;
+export const XP_FEED_LIKE = 5;
+export const XP_FEED_REPLY = 10;
 
 export async function grantXp(userId, amount) {
   const value = Math.max(0, Number(amount) || 0);
   if (!userId || !value) return;
   await query(`UPDATE users SET xp = xp + ? WHERE id = ?`, [value, userId]);
+}
+
+/**
+ * Idempotent XP: the same (user, eventKey) is awarded at most once.
+ * `exec` may be a transaction executor; defaults to the shared pool.
+ */
+export async function grantXpOnce(userId, eventKey, amount, exec = query) {
+  const value = Math.max(0, Number(amount) || 0);
+  if (!userId || !eventKey || !value) return { awarded: false, amount: 0 };
+  const inserted = await exec(
+    `INSERT IGNORE INTO xp_reward_events (id, user_id, event_key, amount) VALUES (?, ?, ?, ?)`,
+    [uuidv4(), userId, String(eventKey).slice(0, 160), value]
+  );
+  if (!inserted.affectedRows) return { awarded: false, amount: 0 };
+  await exec(`UPDATE users SET xp = xp + ? WHERE id = ?`, [value, userId]);
+  return { awarded: true, amount: value };
+}
+
+export async function currentXp(userId) {
+  const [row] = await query(`SELECT xp FROM users WHERE id = ? LIMIT 1`, [userId]);
+  return Number(row?.xp || 0);
 }
 
 async function award(userId, slug) {

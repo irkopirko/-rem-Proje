@@ -14,6 +14,7 @@ import {
   storeImage,
 } from '../services/contentImages.js';
 import { beginGuideUpload, confirmGuideUpload, guideForCrew } from '../services/guide.js';
+import { listHomeworkFilesByAssignments } from '../services/homeworkSubmissions.js';
 
 const rawImage = express.raw({ type: () => true, limit: MAX_IMAGE_BYTES });
 
@@ -167,15 +168,20 @@ router.delete('/homework/images/:imageId', async (req, res) => {
 
 router.get('/homework/pending-review', async (_req, res) => {
   const rows = await query(
-    `SELECT ha.id AS assignmentId, h.title, u.first_name AS firstName, u.last_name AS lastName, ha.status,
-            (SELECT file_url FROM homework_submissions hs WHERE hs.assignment_id = ha.id ORDER BY submitted_at DESC LIMIT 1) AS fileUrl
+    `SELECT ha.id AS assignmentId, h.title, u.first_name AS firstName, u.last_name AS lastName, ha.status
      FROM homework_assignments ha
      JOIN homework h ON h.id = ha.homework_id
      JOIN users u ON u.id = ha.student_id
      WHERE ha.status IN ('submitted','grading')
      ORDER BY ha.assigned_at ASC`
   );
-  return res.json({ items: rows });
+  const filesByAssignment = await listHomeworkFilesByAssignments(rows.map((row) => row.assignmentId));
+  return res.json({
+    items: rows.map((row) => {
+      const files = filesByAssignment.get(row.assignmentId) || [];
+      return { ...row, files, fileUrl: files[0]?.url || null };
+    }),
+  });
 });
 
 router.post('/homework/:assignmentId/grade', async (req, res) => {

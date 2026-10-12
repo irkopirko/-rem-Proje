@@ -66,6 +66,11 @@ struct User: Codable, Sendable, Identifiable {
 
     var avatarFrame: AvatarFrame { .of(role: role, membership: membershipStatus, username: username) }
 
+    var isVerified: Bool { avatarFrame == .purple }
+
+    /// Crew / super admin öğrenci merdiveni (Çırak–Usta) kullanmaz.
+    var showsStudentRank: Bool { role == .student }
+
     var levelProgress: LevelProgress { LevelMath.from(xp: totalXp ?? xp ?? 0) }
 
     /// "yyyy-MM-dd" → "12 Mart 1998"

@@ -26,3 +26,23 @@ export async function query(sql, params = []) {
   const [rows] = await getPool().execute(sql, params);
   return rows;
 }
+
+/** Runs `fn(exec)` inside a single MySQL transaction. */
+export async function withTransaction(fn) {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const exec = async (sql, params = []) => {
+      const [rows] = await conn.execute(sql, params);
+      return rows;
+    };
+    const result = await fn(exec);
+    await conn.commit();
+    return result;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}

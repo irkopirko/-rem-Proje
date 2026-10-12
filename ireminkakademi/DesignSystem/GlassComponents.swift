@@ -66,21 +66,11 @@ struct GlassCard<Content: View>: View {
     var emphasized = false
     @ViewBuilder var content: Content
 
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                glassFill(
-                    radius: radius,
-                    emphasized: emphasized,
-                    reduceTransparency: reduceTransparency,
-                    colorScheme: colorScheme
-                )
-            }
+            .glassChrome(radius: radius, emphasized: emphasized)
     }
 }
 
@@ -156,13 +146,35 @@ struct GlassChrome: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
-        content.background {
-            glassFill(
-                radius: radius,
-                emphasized: emphasized,
-                reduceTransparency: reduceTransparency,
-                colorScheme: colorScheme
-            )
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if reduceTransparency {
+            content.background { glassFill(radius: radius, emphasized: emphasized, reduceTransparency: true, colorScheme: colorScheme) }
+        } else if #available(iOS 26.0, *) {
+            content
+                .glassEffect(emphasized ? .regular.tint(InkGlass.rose.opacity(0.20)) : .clear, in: shape)
+                .overlay {
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.55 : 0.80),
+                                Color(red: 0.78, green: 0.62, blue: 1.0).opacity(0.28),
+                                Color.white.opacity(colorScheme == .dark ? 0.12 : 0.28),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.9
+                    )
+                }
+        } else {
+            content.background {
+                glassFill(
+                    radius: radius,
+                    emphasized: emphasized,
+                    reduceTransparency: false,
+                    colorScheme: colorScheme
+                )
+            }
         }
     }
 }
@@ -187,35 +199,39 @@ func glassFill(
         if reduceTransparency {
             shape.fill(InkGlass.surface)
         } else {
-            shape.fill(InkGlass.surface.opacity(emphasized ? (isDark ? 0.78 : 0.92) : (isDark ? 0.62 : 0.78)))
+            shape.fill(.ultraThinMaterial)
+            shape.fill(Color.white.opacity(isDark ? (emphasized ? 0.06 : 0.04) : (emphasized ? 0.38 : 0.28)))
             if emphasized {
-                shape.fill(InkGlass.rose.opacity(pressed ? 0.38 : (isDark ? 0.22 : 0.16)))
+                shape.fill(InkGlass.rose.opacity(pressed ? 0.28 : (isDark ? 0.14 : 0.10)))
             }
         }
         shape.fill(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(isDark ? (pressed ? 0.14 : 0.08) : 0.55),
+                    Color.white.opacity(isDark ? (pressed ? 0.28 : 0.20) : 0.62),
+                    Color.white.opacity(isDark ? 0.04 : 0.12),
+                    Color(red: 0.72, green: 0.55, blue: 0.98).opacity(isDark ? 0.10 : 0.08),
                     .clear,
-                    Color.black.opacity(isDark ? 0.18 : 0.04),
+                    Color.white.opacity(isDark ? 0.07 : 0.20),
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         )
         shape.stroke(
             LinearGradient(
                 colors: [
-                    (isDark ? Color.white : Color.black).opacity(pressed || emphasized ? 0.20 : 0.12),
-                    (isDark ? Color.white : Color.black).opacity(0.04),
+                    Color.white.opacity(isDark ? (pressed || emphasized ? 0.55 : 0.42) : 0.82),
+                    Color(red: 0.78, green: 0.62, blue: 1.0).opacity(0.30),
+                    Color.white.opacity(isDark ? 0.10 : 0.22),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.8
+            lineWidth: 0.9
         )
     }
-    .shadow(color: Color.black.opacity(isDark ? 0.34 : 0.10), radius: 16, x: 0, y: 8)
-    .shadow(color: InkGlass.rose.opacity(emphasized ? 0.14 : 0.05), radius: 18, x: 0, y: 4)
+    .shadow(color: Color.white.opacity(isDark ? 0.06 : 0.28), radius: 1, x: 0, y: 0.5)
+    .shadow(color: Color.black.opacity(isDark ? 0.28 : 0.08), radius: 16, x: 0, y: 8)
     .clipShape(shape)
 }

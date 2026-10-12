@@ -1,7 +1,82 @@
 import Foundation
 
+struct EducationProgramDTO: Identifiable, Decodable, Hashable {
+    let id: String
+    var slug: String? = nil
+    let title: String
+    var description: String? = nil
+    var instructorName: String? = nil
+    var coverImageUrl: String? = nil
+    var sortOrder: Int = 0
+    var isPublished: Bool? = nil
+    var moduleCount: Int = 0
+    var videoCount: Int = 0
+    var completedCount: Int = 0
+    var displayIndex: Int? = nil
+
+    var numberLabel: String {
+        if let displayIndex, displayIndex > 0 { return "\(displayIndex)" }
+        return sortOrder > 0 ? "\(sortOrder)" : "1"
+    }
+
+    var subtitle: String {
+        let modules = moduleCount == 1 ? "1 modül" : "\(moduleCount) modül"
+        guard videoCount > 0 else { return modules }
+        return "\(modules) · \(videoCount) ders"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, slug, title, description, instructorName, coverImageUrl, sortOrder, isPublished, moduleCount, videoCount, completedCount, displayIndex
+    }
+
+    init(
+        id: String,
+        slug: String? = nil,
+        title: String,
+        description: String? = nil,
+        instructorName: String? = nil,
+        coverImageUrl: String? = nil,
+        sortOrder: Int = 0,
+        isPublished: Bool? = nil,
+        moduleCount: Int = 0,
+        videoCount: Int = 0,
+        completedCount: Int = 0,
+        displayIndex: Int? = nil
+    ) {
+        self.id = id
+        self.slug = slug
+        self.title = title
+        self.description = description
+        self.instructorName = instructorName
+        self.coverImageUrl = coverImageUrl
+        self.sortOrder = sortOrder
+        self.isPublished = isPublished
+        self.moduleCount = moduleCount
+        self.videoCount = videoCount
+        self.completedCount = completedCount
+        self.displayIndex = displayIndex
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        slug = try c.decodeIfPresent(String.self, forKey: .slug)
+        title = try c.decode(String.self, forKey: .title)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        instructorName = try c.decodeIfPresent(String.self, forKey: .instructorName)
+        coverImageUrl = try c.decodeIfPresent(String.self, forKey: .coverImageUrl)
+        sortOrder = try c.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
+        isPublished = try c.decodeIfPresent(Bool.self, forKey: .isPublished)
+        moduleCount = try c.decodeIfPresent(Int.self, forKey: .moduleCount) ?? 0
+        videoCount = try c.decodeIfPresent(Int.self, forKey: .videoCount) ?? 0
+        completedCount = try c.decodeIfPresent(Int.self, forKey: .completedCount) ?? 0
+        displayIndex = try c.decodeIfPresent(Int.self, forKey: .displayIndex)
+    }
+}
+
 struct ModuleDTO: Identifiable, Decodable, Hashable {
     let id: String
+    var educationProgramId: String? = nil
     let moduleNumber: Double
     let title: String
     let description: String?
@@ -11,26 +86,43 @@ struct ModuleDTO: Identifiable, Decodable, Hashable {
     /// Yalnızca crew yanıtlarında.
     var isPublished: Bool? = nil
     var readyCount: Int? = nil
+    var displayLabel: String? = nil
 
-    var numberLabel: String { String(format: "%.0f", moduleNumber) }
+    var numberLabel: String {
+        if let displayLabel, !displayLabel.isEmpty { return displayLabel }
+        return String(format: "%.0f", moduleNumber)
+    }
 
-    init(id: String, moduleNumber: Double, title: String, description: String?, sortOrder: Int, videoCount: Int = 0, completedCount: Int = 0) {
+    init(
+        id: String,
+        moduleNumber: Double,
+        title: String,
+        description: String?,
+        sortOrder: Int,
+        videoCount: Int = 0,
+        completedCount: Int = 0,
+        educationProgramId: String? = nil,
+        displayLabel: String? = nil
+    ) {
         self.id = id
+        self.educationProgramId = educationProgramId
         self.moduleNumber = moduleNumber
         self.title = title
         self.description = description
         self.sortOrder = sortOrder
         self.videoCount = videoCount
         self.completedCount = completedCount
+        self.displayLabel = displayLabel
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, moduleNumber, title, description, sortOrder, videoCount, completedCount, isPublished, readyCount
+        case id, educationProgramId, moduleNumber, title, description, sortOrder, videoCount, completedCount, isPublished, readyCount, displayLabel
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
+        educationProgramId = try c.decodeIfPresent(String.self, forKey: .educationProgramId)
         moduleNumber = try c.decode(Double.self, forKey: .moduleNumber)
         title = try c.decode(String.self, forKey: .title)
         description = try c.decodeIfPresent(String.self, forKey: .description)
@@ -39,6 +131,7 @@ struct ModuleDTO: Identifiable, Decodable, Hashable {
         completedCount = try c.decodeIfPresent(Int.self, forKey: .completedCount) ?? 0
         isPublished = try c.decodeIfPresent(Bool.self, forKey: .isPublished)
         readyCount = try c.decodeIfPresent(Int.self, forKey: .readyCount)
+        displayLabel = try c.decodeIfPresent(String.self, forKey: .displayLabel)
     }
 }
 
@@ -73,6 +166,14 @@ struct VideoDTO: Identifiable, Decodable, Hashable {
     var completed: Bool? = nil
     var lastPositionSeconds: Int? = nil
     var allowTrial: Bool = false
+    var locked: Bool? = nil
+
+    func isLocked(for user: User?) -> Bool {
+        guard let user, user.role == .student else { return false }
+        if user.membershipStatus.isPaid { return false }
+        if user.membershipStatus == .trial { return !allowTrial }
+        return true
+    }
 
     var numberLabel: String {
         videoNumber.rounded() == videoNumber ? String(format: "%.0f", videoNumber) : String(format: "%.1f", videoNumber)
@@ -110,6 +211,15 @@ struct CatalogResponse: Decodable {
     let liveSession: LiveSessionDTO?
 }
 
+struct ProgramsResponse: Decodable {
+    let programs: [EducationProgramDTO]
+}
+
+struct ProgramDetailResponse: Decodable {
+    let program: EducationProgramDTO
+    let modules: [ModuleDTO]
+}
+
 struct ModuleVideosResponse: Decodable {
     let videos: [VideoDTO]
 }
@@ -125,13 +235,33 @@ struct PlaybackDTO: Decodable {
 
 struct CrewModulesResponse: Decodable {
     let modules: [ModuleDTO]
+    var programs: [EducationProgramDTO] = []
     let videoServiceConfigured: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case modules, programs, videoServiceConfigured
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        modules = try c.decode([ModuleDTO].self, forKey: .modules)
+        programs = try c.decodeIfPresent([EducationProgramDTO].self, forKey: .programs) ?? []
+        videoServiceConfigured = try c.decodeIfPresent(Bool.self, forKey: .videoServiceConfigured) ?? true
+    }
+}
+
+struct ProgramDraft: Equatable {
+    var title: String
+    var description: String
+    var instructorName: String
+    var isPublished: Bool
 }
 
 struct ModuleDraft: Equatable {
     var title: String
     var description: String
     var isPublished: Bool
+    var educationProgramId: String? = nil
 }
 
 struct VideoDraft: Equatable {
@@ -162,9 +292,25 @@ struct ProductCategoryDTO: Identifiable, Decodable, Hashable {
     let id: String
     let name: String
     let imageUrl: String?
+    var products: [ProductDTO]? = nil
+
+    init(id: String, name: String, imageUrl: String?, products: [ProductDTO]? = nil) {
+        self.id = id
+        self.name = name
+        self.imageUrl = imageUrl
+        self.products = products
+    }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, imageUrl
+        case id, name, imageUrl, products
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        products = try c.decodeIfPresent([ProductDTO].self, forKey: .products)
     }
 }
 
@@ -279,9 +425,49 @@ struct HomeworkAssignmentDTO: Identifiable, Decodable {
     let primaryScore: Int?
     let latestScore: Int?
     var fileUrl: String? = nil
+    var files: [HomeworkFileDTO]? = nil
     var images: [ProductImageDTO]? = nil
+    var allowTrial: Bool? = nil
+    var allowPaid: Bool? = nil
+    var locked: Bool? = nil
+    var overdue: Bool? = nil
 
     var gallery: [ProductImageDTO] { images ?? [] }
+    var submittedFiles: [HomeworkFileDTO] { files ?? [] }
+
+    var isPastDue: Bool {
+        if overdue == true { return true }
+        guard let date = HomeworkDateFormat.parse(dueAt) else { return false }
+        return date < .now
+    }
+
+    func isLocked(for user: User?) -> Bool {
+        guard let user, user.role == .student else { return false }
+        if user.membershipStatus.isPaid { return allowPaid == false }
+        if user.membershipStatus == .trial { return allowTrial != true }
+        return true
+    }
+}
+
+struct HomeworkFileDTO: Identifiable, Decodable, Hashable {
+    let id: String
+    var url: String? = nil
+    var mime: String? = nil
+    var size: Int? = nil
+    var name: String? = nil
+
+    var resolvedURL: URL? { MediaURL.resolve(url) }
+}
+
+struct HomeworkUploadTarget: Decodable {
+    let url: String
+    let method: String
+    let headers: [String: String]
+    let key: String
+    var maxBytes: Int? = nil
+    var remainingBytes: Int? = nil
+    var mimeType: String? = nil
+    var fileName: String? = nil
 }
 
 /// Crew panelindeki ödev (öğrenci atamasından bağımsız içerik).

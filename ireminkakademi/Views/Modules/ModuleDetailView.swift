@@ -6,6 +6,7 @@ struct ModuleDetailView: View {
     @State private var catalog = CatalogService()
     @State private var videos: [VideoDTO]?
     @State private var loadError: String?
+    @State private var showPaywall = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -38,10 +39,17 @@ struct ModuleDetailView: View {
                             .padding(.vertical, 32)
                     }
                     ForEach(videos) { video in
-                        NavigationLink(value: video) {
-                            VideoRow(video: video)
+                        if video.isLocked(for: container.sessionUser) {
+                            Button { showPaywall = true } label: {
+                                VideoRow(video: video, locked: true)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(value: video) {
+                                VideoRow(video: video, locked: false)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 } else if let loadError {
                     Text(loadError)
@@ -60,6 +68,14 @@ struct ModuleDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
+        .overlay {
+            if showPaywall {
+                ZStack {
+                    Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { showPaywall = false }
+                    MembershipPaywallSheet { showPaywall = false }
+                }
+            }
+        }
     }
 
     private func load() async {
@@ -74,11 +90,13 @@ struct ModuleDetailView: View {
 
 private struct VideoRow: View {
     let video: VideoDTO
+    var locked = false
 
     var body: some View {
         HStack(spacing: 12) {
             VideoThumbnail(url: video.thumbnailURL)
                 .frame(width: 128, height: 72)
+                .overlay { if locked { LockedContentOverlay() } }
                 .overlay(alignment: .bottomTrailing) {
                     Text(video.durationLabel)
                         .font(AppTypography.monoMedium(size: 11))
