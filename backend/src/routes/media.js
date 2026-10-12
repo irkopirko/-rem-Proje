@@ -4,7 +4,7 @@ import { profilePhotoUrl, readProfilePhoto } from '../services/profilePhotos.js'
 import { homeworkSubmissionUrl, readHomeworkSubmission } from '../services/homeworkSubmissions.js';
 import { feedMediaPublicUrl, feedThumbnailPublicUrl, readFeedMedia, readFeedThumbnail } from '../services/feed.js';
 import { readProgramCover } from '../services/programs.js';
-import { signedVideoThumbUrl } from '../services/videoCatalog.js';
+import { videoThumbnailBytes } from '../services/videoCatalog.js';
 
 const router = Router();
 
@@ -67,13 +67,15 @@ router.get('/program-covers/:id', async (req, res) => {
 
 router.get('/video-thumbs/:id', async (req, res) => {
   if (!UUID.test(req.params.id)) return res.status(404).end();
-  const url = await signedVideoThumbUrl(req.params.id);
-  if (!url || !url.startsWith('https://')) return res.status(404).end();
+  const image = await videoThumbnailBytes(req.params.id);
+  if (!image?.data) return res.status(404).end();
   res.set({
+    'Content-Type': image.mimeType,
     'Cache-Control': 'public, max-age=3600',
+    'X-Content-Type-Options': 'nosniff',
     'Cross-Origin-Resource-Policy': 'cross-origin',
   });
-  return res.redirect(302, url);
+  return res.send(image.data);
 });
 
 router.get('/homework-submissions/:id', async (req, res) => {

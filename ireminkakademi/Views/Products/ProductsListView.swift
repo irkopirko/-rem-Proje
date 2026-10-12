@@ -16,10 +16,9 @@ struct ProductsListView: View {
     @State private var pages: [ShopCategoryPage] = []
     @State private var loadError: String?
     @State private var isLoading = false
-    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     InkMockSectionTitle(text: "Ürünler")
@@ -36,7 +35,9 @@ struct ProductsListView: View {
                         }
                     } else {
                         ForEach(pages) { page in
-                            NavigationLink(value: page.id) {
+                            NavigationLink {
+                                ProductCategoryDetailView(title: page.title, products: page.products)
+                            } label: {
                                 ProductCategoryCard(page: page)
                             }
                             .buttonStyle(.plain)
@@ -51,14 +52,6 @@ struct ProductsListView: View {
             .scrollBounceBehavior(.always)
             .navigationBarHidden(true)
             .refreshable { await load() }
-            .navigationDestination(for: String.self) { categoryId in
-                if let page = pages.first(where: { $0.id == categoryId }) {
-                    ProductCategoryDetailView(title: page.title, products: page.products)
-                }
-            }
-            .navigationDestination(for: ProductDTO.self) { product in
-                ProductDetailView(product: product)
-            }
             .task { if pages.isEmpty { await load() } }
         }
     }
@@ -69,15 +62,19 @@ struct ProductsListView: View {
         defer { isLoading = false }
         do {
             let data = try await catalog.fetchProducts()
-            pages = data.categories.map { category in
-                ShopCategoryPage(
-                    id: category.id.trimmingCharacters(in: .whitespacesAndNewlines),
+            let grouped = Dictionary(grouping: data.products) {
+                $0.categoryId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+            pages = data.categories.compactMap { category in
+                let id = category.id.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !id.isEmpty else { return nil }
+                return ShopCategoryPage(
+                    id: id,
                     title: category.name,
                     coverUrl: category.imageUrl,
-                    products: category.products ?? []
+                    products: grouped[id.lowercased()] ?? []
                 )
             }
-            .filter { !$0.id.isEmpty }
             loadError = nil
         } catch {
             if pages.isEmpty { loadError = error.localizedDescription }
@@ -122,13 +119,13 @@ private struct ProductCategoryCard: View {
     }
 
     private var coverURL: URL? {
-        if let raw = page.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
-            if raw.hasPrefix("http://") || raw.hasPrefix("https://") || raw.hasPrefix("file://") {
-                return URL(string: raw)
-            }
-            return URL(string: raw, relativeTo: APIConfiguration.baseURL)?.absoluteURL
+        guard let raw = page.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
         }
-        return page.products.first { !$0.gallery.isEmpty }?.gallery.first?.resolvedURL
+        if raw.hasPrefix("http://") || raw.hasPrefix("https://") || raw.hasPrefix("file://") {
+            return URL(string: raw)
+        }
+        return URL(string: raw, relativeTo: APIConfiguration.baseURL)?.absoluteURL
     }
 }
 
@@ -153,7 +150,9 @@ struct ProductCategoryDetailView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(products) { product in
-                            NavigationLink(value: product) {
+                            NavigationLink {
+                                ProductDetailView(product: product)
+                            } label: {
                                 ProductGridItem(product: product)
                             }
                             .buttonStyle(.plain)

@@ -202,16 +202,27 @@ struct HomeView: View {
                     .onAppear { hidesTabBar.wrappedValue = true }
                     .onDisappear { hidesTabBar.wrappedValue = false }
             } label: {
-                Image("HomeChatIcon")
-                    .resizable()
-                    .renderingMode(.original)
-                    .scaledToFit()
-                    .frame(width: 52, height: 52)
+                HomeChatBalloon(size: 62)
             }
-            .frame(width: 56, height: 56)
+            .buttonStyle(.plain)
             .contentShape(Rectangle())
             .accessibilityLabel("Sohbet")
         }
+    }
+}
+
+/// Assetin etrafındaki boş siyah kenarı kırpar; balon başlıktaki yuvayı doldurur.
+struct HomeChatBalloon: View {
+    var size: CGFloat = 62
+
+    var body: some View {
+        Image("HomeChatIcon")
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFit()
+            .scaleEffect(1.78)
+            .frame(width: size, height: size)
+            .clipped()
     }
 }
 

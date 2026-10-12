@@ -45,6 +45,40 @@ final class CommunityFeedService {
         return resp.media
     }
 
+    func uploadVideo(postId: String, fileURL: URL, contentType: String, size: Int) async throws -> FeedMediaDTO {
+        struct SessionBody: Encodable {
+            let mimeType: String
+            let size: Int
+        }
+        struct SessionResp: Decodable { let upload: HomeworkUploadTarget }
+        struct Confirm: Encodable {
+            let key: String
+            let mimeType: String
+            let size: Int
+        }
+        struct Resp: Decodable { let media: FeedMediaDTO }
+        do {
+            let session: SessionResp = try await api.request(
+                "/v1/feed/posts/\(postId)/upload-session",
+                method: "POST",
+                body: SessionBody(mimeType: contentType, size: size),
+                authorized: true
+            )
+            guard let putURL = URL(string: session.upload.url) else { throw InkAPIError.invalidURL }
+            try await api.putFile(to: putURL, fileURL: fileURL, headers: session.upload.headers)
+            let resp: Resp = try await api.request(
+                "/v1/feed/posts/\(postId)/media",
+                method: "POST",
+                body: Confirm(key: session.upload.key, mimeType: contentType, size: size),
+                authorized: true
+            )
+            return resp.media
+        } catch InkAPIError.server(let message) where message.localizedCaseInsensitiveContains("depolama") {
+            guard size <= 8 * 1024 * 1024 else { throw InkAPIError.server(message) }
+            return try await uploadMedia(postId: postId, fileURL: fileURL, contentType: contentType)
+        }
+    }
+
     func uploadVideoThumbnail(mediaId: String, jpeg: Data) async throws -> FeedMediaDTO {
         struct Resp: Decodable { let media: FeedMediaDTO }
         let resp: Resp = try await api.upload("/v1/feed/media/\(mediaId)/thumbnail", data: jpeg, contentType: "image/jpeg")

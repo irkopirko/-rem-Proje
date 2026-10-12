@@ -199,6 +199,51 @@ export function streamThumbnailUrl(guid) {
   });
 }
 
+function sniffImageMime(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return 'image/png';
+  }
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+    return 'image/webp';
+  }
+  return null;
+}
+
+/** Fetches the JPEG/WebP cover so clients never have to follow Bunny token redirects. */
+export async function fetchStreamThumbnail(guid) {
+  const s = stream();
+  if (!s.cdnHost || !guid) return null;
+  const id = String(guid).trim();
+  let fileName = 'thumbnail.jpg';
+  try {
+    const remote = await getStreamVideo(id);
+    if (remote?.thumbnailFileName) fileName = String(remote.thumbnailFileName).replace(/^\/+/, '');
+  } catch (err) {
+    console.error('[bunny] thumbnail metadata failed', id, err.message);
+  }
+  const expires = stableDailyExpiry();
+  const candidates = [
+    signBunnyUrl({ host: s.cdnHost, path: `/${id}/${fileName}`, tokenKey: s.tokenKey, expires }),
+    signBunnyUrl({ host: s.cdnHost, path: `/${id}/preview.webp`, tokenKey: s.tokenKey, expires }),
+    streamThumbnailUrl(id),
+  ].filter(Boolean);
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { redirect: 'follow' });
+      if (!res.ok) continue;
+      const data = Buffer.from(await res.arrayBuffer());
+      const mime = sniffImageMime(data);
+      if (!mime) continue;
+      return { data, mimeType: mime };
+    } catch (err) {
+      console.error('[bunny] thumbnail fetch failed', url, err.message);
+    }
+  }
+  return null;
+}
+
 export async function uploadToStorage(key, buffer, contentType) {
   const s = storage();
   const res = await fetch(`https://${s.host}/${s.zone}/${key}`, {

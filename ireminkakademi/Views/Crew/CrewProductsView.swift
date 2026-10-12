@@ -112,7 +112,10 @@ struct CrewProductsView: View {
     }
 
     private func products(in category: ProductCategoryDTO) -> [ProductDTO] {
-        (data?.products ?? []).filter { $0.categoryId == category.id }
+        (data?.products ?? []).filter {
+            $0.categoryId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                == category.id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
     }
 
     private func productRow(_ product: ProductDTO) -> some View {

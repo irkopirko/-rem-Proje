@@ -301,10 +301,15 @@ router.get('/products', async (req, res) => {
   );
   const byCategory = new Map();
   for (const product of products) {
-    const key = String(product.categoryId ?? '').trim();
+    const key = String(product.categoryId ?? '').trim().toLowerCase();
+    if (!key) continue;
     if (!byCategory.has(key)) byCategory.set(key, []);
-    byCategory.get(key).push(product);
+    byCategory.get(key).push({ ...product, categoryId: key });
   }
+  const normalizedProducts = products.map((product) => ({
+    ...product,
+    categoryId: String(product.categoryId ?? '').trim().toLowerCase(),
+  }));
   return res.json({
     categories: categories.map((category) => {
       const id = String(category.id ?? '').trim();
@@ -313,10 +318,10 @@ router.get('/products', async (req, res) => {
         name: category.name,
         imageUrl: category.imageUrl,
         sortOrder: category.sortOrder,
-        products: byCategory.get(id) ?? [],
+        products: byCategory.get(id.toLowerCase()) ?? [],
       };
     }),
-    products,
+    products: normalizedProducts,
   });
 });
 

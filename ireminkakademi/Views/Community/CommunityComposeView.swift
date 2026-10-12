@@ -137,9 +137,18 @@ struct CommunityComposeView: View {
                 clientRequestId: UUID().uuidString.lowercased()
             )
             for (index, item) in attachments.enumerated() {
-                progressText = "Medya yükleniyor (\(index + 1)/\(attachments.count))…"
+                progressText = item.isVideo
+                    ? "Video yükleniyor (\(index + 1)/\(attachments.count))…"
+                    : "Medya yükleniyor (\(index + 1)/\(attachments.count))…"
                 let media: FeedMediaDTO
-                if let fileURL = item.fileURL {
+                if item.isVideo, let fileURL = item.fileURL {
+                    media = try await feed.uploadVideo(
+                        postId: created.id,
+                        fileURL: fileURL,
+                        contentType: item.contentType,
+                        size: item.byteCount
+                    )
+                } else if let fileURL = item.fileURL {
                     media = try await feed.uploadMedia(postId: created.id, fileURL: fileURL, contentType: item.contentType)
                 } else if let data = item.data {
                     media = try await feed.uploadMedia(postId: created.id, data: data, contentType: item.contentType)
@@ -167,6 +176,12 @@ struct FeedDraftMedia: Identifiable {
     let contentType: String
     let isVideo: Bool
     let preview: UIImage?
+    var byteCount: Int {
+        if let fileURL, let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize {
+            return size
+        }
+        return data?.count ?? 0
+    }
 
     static func load(_ item: PhotosPickerItem, imagesOnly: Bool = false) async throws -> Self {
         let isMovie = !imagesOnly && item.supportedContentTypes.contains(where: {
@@ -189,36 +204,16 @@ struct FeedDraftMedia: Identifiable {
         guard let movie = try await item.loadTransferable(type: PickedMovie.self) else {
             throw InkAPIError.server("Video okunamadı.")
         }
-        var url = movie.url
-        var size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let url = movie.url
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         if size <= 0 { throw InkAPIError.server("Video okunamadı.") }
-        if size > 18 * 1024 * 1024 {
-            url = try await exportCompressed(url)
-            size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        }
-        guard size <= 40 * 1024 * 1024 else { throw InkAPIError.server("Video en fazla 40 MB olabilir.") }
+        guard size <= 2 * 1024 * 1024 * 1024 else { throw InkAPIError.server("Video en fazla 2 GB olabilir.") }
         return Self(
             fileURL: url,
             contentType: "video/mp4",
             isVideo: true,
             preview: VideoFrameThumbnail.image(from: url)
         )
-    }
-
-    private static func exportCompressed(_ source: URL) async throws -> URL {
-        let asset = AVURLAsset(url: source)
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetMediumQuality) else {
-            throw InkAPIError.server("Video hazırlanamadı.")
-        }
-        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("feed-\(UUID().uuidString).mp4")
-        session.outputURL = dest
-        session.outputFileType = .mp4
-        session.shouldOptimizeForNetworkUse = true
-        await session.export()
-        guard session.status == .completed else {
-            throw InkAPIError.server("Video sıkıştırılamadı. Daha kısa bir klip dene.")
-        }
-        return dest
     }
 
 }

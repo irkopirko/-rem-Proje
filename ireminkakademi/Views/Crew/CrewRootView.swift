@@ -27,12 +27,9 @@ struct CrewRootView: View {
     private var header: some View {
         HStack(spacing: 12) {
             Button { showCommunity = true } label: {
-                Image("HomeChatIcon")
-                    .resizable()
-                    .renderingMode(.original)
-                    .scaledToFit()
-                    .frame(width: 30, height: 30)
+                HomeChatBalloon(size: 44)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Topluluk")
 
             VStack(alignment: .leading, spacing: 2) {

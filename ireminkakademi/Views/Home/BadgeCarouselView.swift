@@ -9,7 +9,7 @@ struct BadgeCarouselView: View {
             HStack(alignment: .top, spacing: 16) {
                 ForEach(badges) { badge in
                     Button { onSelect(badge) } label: {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 0) {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .fill(.clear)
                                 .frame(width: 92, height: 92)
@@ -19,15 +19,18 @@ struct BadgeCarouselView: View {
                                 .font(AppTypography.caption(size: 12))
                                 .foregroundStyle(InkMockup.captionColor)
                                 .lineLimit(2)
+                                .minimumScaleFactor(0.82)
                                 .multilineTextAlignment(.center)
-                                .frame(width: 92, height: 34, alignment: .top)
+                                .frame(width: 92, height: 36, alignment: .top)
+                                .padding(.top, 8)
                         }
-                        .frame(width: 92, alignment: .top)
+                        .frame(width: 92, height: 136, alignment: .top)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(badge.title), \(badge.xpReward) XP\(badge.isEarned ? ", kazanıldı" : "")")
                 }
             }
+            .frame(height: 136, alignment: .top)
         }
     }
 }

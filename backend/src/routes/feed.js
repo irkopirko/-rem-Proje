@@ -2,11 +2,14 @@ import express, { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import {
-  MAX_FEED_VIDEO_BYTES,
+  MAX_FEED_IMAGE_BYTES,
+  MAX_FEED_VIDEO_PROXY_BYTES,
   addPostMedia,
   addReplyMedia,
+  beginPostVideoUpload,
   canUseFeed,
   canWriteFeed,
+  confirmPostVideo,
   createPost,
   createReply,
   deletePost,
@@ -29,7 +32,16 @@ router.use((req, res, next) => {
   next();
 });
 
-const rawMedia = express.raw({ type: () => true, limit: MAX_FEED_VIDEO_BYTES });
+const rawMedia = express.raw({
+  type: () => true,
+  limit: Math.max(MAX_FEED_IMAGE_BYTES, MAX_FEED_VIDEO_PROXY_BYTES),
+});
+
+function rawFeedIfBinary(req, res, next) {
+  const type = String(req.headers['content-type'] || '').toLowerCase();
+  if (!type || type.includes('application/json')) return next();
+  return rawMedia(req, res, next);
+}
 
 router.get('/posts', async (req, res) => {
   const result = await listPosts(req.user, { cursor: req.query.cursor, limit: req.query.limit });
@@ -59,9 +71,34 @@ router.post('/posts', async (req, res) => {
   return res.status(result.status).json(result.body);
 });
 
-router.post('/posts/:id/media', rawMedia, async (req, res) => {
-  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Invalid file' });
-  const result = await addPostMedia(req.user, req.params.id, req.body);
+router.post('/posts/:id/upload-session', async (req, res) => {
+  if (!canWriteFeed(req.user)) return res.status(402).json({ error: 'Membership required' });
+  const parsed = z
+    .object({
+      mimeType: z.string().min(1),
+      size: z.number().int().positive(),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
+  const started = await beginPostVideoUpload(req.user, req.params.id, parsed.data);
+  if (started.status !== 200) return res.status(started.status).json(started.body);
+  return res.json({ upload: started.upload });
+});
+
+router.post('/posts/:id/media', rawFeedIfBinary, async (req, res) => {
+  if (Buffer.isBuffer(req.body) && req.body.length) {
+    const result = await addPostMedia(req.user, req.params.id, req.body);
+    return res.status(result.status).json(result.body);
+  }
+  const parsed = z
+    .object({
+      key: z.string().min(1),
+      mimeType: z.string().min(1),
+      size: z.number().int().positive(),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid file' });
+  const result = await confirmPostVideo(req.user, req.params.id, parsed.data);
   return res.status(result.status).json(result.body);
 });
 

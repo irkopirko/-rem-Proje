@@ -1,5 +1,5 @@
 import { query } from '../db.js';
-import { getStreamVideo, isStreamConfigured, mapStreamStatus, streamThumbnailUrl } from './bunny.js';
+import { fetchStreamThumbnail, getStreamVideo, isStreamConfigured, mapStreamStatus, streamThumbnailUrl } from './bunny.js';
 
 /** Public shape shared by crew and student endpoints. */
 export function videoDTO(row, progress) {
@@ -57,6 +57,12 @@ export async function signedVideoThumbUrl(videoId) {
   const [row] = await query(`SELECT bunny_video_id AS guid, status FROM videos WHERE id = ? LIMIT 1`, [videoId]);
   if (!row?.guid || row.status !== 'ready') return null;
   return streamThumbnailUrl(row.guid);
+}
+
+export async function videoThumbnailBytes(videoId) {
+  const [row] = await query(`SELECT bunny_video_id AS guid, status FROM videos WHERE id = ? LIMIT 1`, [videoId]);
+  if (!row?.guid || row.status !== 'ready') return null;
+  return fetchStreamThumbnail(row.guid);
 }
 
 export async function ensurePlayable(row) {

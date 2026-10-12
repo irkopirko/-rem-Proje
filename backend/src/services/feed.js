@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { query, withTransaction } from '../db.js';
-import { deleteFromStorage, isStorageConfigured, storageCdnUrl, uploadToStorage } from './bunny.js';
+import { deleteFromStorage, isStorageConfigured, storageCdnUrl, storagePutTarget, uploadToStorage } from './bunny.js';
 import { detectImageMime } from './contentImages.js';
 import { avatarFrame, isStaff } from './membership.js';
 import { canJoin } from './community.js';
@@ -11,7 +11,9 @@ export const MAX_POST_LENGTH = 2000;
 export const MAX_REPLY_LENGTH = 500;
 export const MAX_MEDIA_PER_POST = 4;
 export const MAX_FEED_IMAGE_BYTES = 5 * 1024 * 1024;
-export const MAX_FEED_VIDEO_BYTES = 40 * 1024 * 1024;
+export const MAX_FEED_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
+export const MAX_FEED_VIDEO_PROXY_BYTES = 8 * 1024 * 1024;
+const VIDEO_KEY_RE = /^feed-media\/([0-9a-f-]{36})\/([0-9a-f-]{36})\.mp4$/i;
 
 const POSTS_PER_HOUR = 8;
 const REPLIES_PER_HOUR = 20;
@@ -307,20 +309,137 @@ export async function addPostMedia(user, postId, buffer) {
   if (!imageMime && !videoMime) return { status: 415, body: { error: 'Sadece JPEG, PNG, WebP veya MP4 yükleyebilirsin.' } };
   const kind = imageMime ? 'image' : 'video';
   const mimeType = imageMime || videoMime;
-  const maxBytes = kind === 'image' ? MAX_FEED_IMAGE_BYTES : MAX_FEED_VIDEO_BYTES;
-  if (buffer.length > maxBytes) return { status: 413, body: { error: 'Dosya çok büyük' } };
+  const maxBytes = kind === 'image' ? MAX_FEED_IMAGE_BYTES : MAX_FEED_VIDEO_PROXY_BYTES;
+  if (buffer.length > maxBytes) {
+    return {
+      status: 413,
+      body: { error: kind === 'video' ? 'Video en fazla 2 GB olabilir. Büyük dosyayı doğrudan yükle.' : 'Dosya çok büyük' },
+    };
+  }
 
+  const slot = await postMediaSlot(postId, kind);
+  if (slot.error) return slot.error;
+
+  const stored = await storeFeedMedia({
+    postId,
+    replyId: null,
+    buffer,
+    kind,
+    mimeType,
+    userId: user.id,
+    maxOrder: slot.maxOrder,
+  });
+  return { status: stored.status, body: stored.body };
+}
+
+async function postMediaSlot(postId, kind) {
   const [{ count, maxOrder, videos }] = await query(
     `SELECT COUNT(*) AS count, COALESCE(MAX(sort_order), -1) AS maxOrder,
             SUM(kind = 'video') AS videos
      FROM feed_media WHERE post_id = ? AND reply_id IS NULL`,
     [postId]
   );
-  if (count >= MAX_MEDIA_PER_POST) return { status: 409, body: { error: 'En fazla 4 medya ekleyebilirsin' } };
-  if (kind === 'video' && Number(videos) > 0) return { status: 409, body: { error: 'Gönderiye bir video ekleyebilirsin' } };
+  if (count >= MAX_MEDIA_PER_POST) return { error: { status: 409, body: { error: 'En fazla 4 medya ekleyebilirsin' } } };
+  if (kind === 'video' && Number(videos) > 0) {
+    return { error: { status: 409, body: { error: 'Gönderiye bir video ekleyebilirsin' } } };
+  }
+  return { maxOrder };
+}
 
-  const stored = await storeFeedMedia({ postId, replyId: null, buffer, kind, mimeType, userId: user.id, maxOrder });
-  return { status: stored.status, body: stored.body };
+function parseFeedVideoKey(key) {
+  const match = String(key || '').trim().match(VIDEO_KEY_RE);
+  if (!match) return null;
+  return { postId: match[1], id: match[2], key: match[0] };
+}
+
+export async function beginPostVideoUpload(user, postId, { mimeType, size } = {}) {
+  if (!canWriteFeed(user)) return { status: 402, body: { error: 'Membership required' } };
+  const [post] = await query(`SELECT id, user_id FROM feed_posts WHERE id = ? AND deleted_at IS NULL LIMIT 1`, [postId]);
+  if (!post) return { status: 404, body: { error: 'Not found' } };
+  if (post.user_id !== user.id) return { status: 403, body: { error: 'Forbidden' } };
+
+  const mime = String(mimeType || '').trim().toLowerCase();
+  if (!['video/mp4', 'video/quicktime', 'video/mpeg'].includes(mime)) {
+    return { status: 415, body: { error: 'Sadece MP4 video yükleyebilirsin.' } };
+  }
+  const bytes = Number(size);
+  if (!Number.isFinite(bytes) || bytes <= 0) return { status: 400, body: { error: 'Invalid file' } };
+  if (bytes > MAX_FEED_VIDEO_BYTES) return { status: 413, body: { error: 'Video en fazla 2 GB olabilir.' } };
+  if (!isStorageConfigured()) {
+    return { status: 503, body: { error: 'Büyük video için depolama yapılandırılmalı.' } };
+  }
+
+  const slot = await postMediaSlot(postId, 'video');
+  if (slot.error) return slot.error;
+
+  const id = uuidv4();
+  const key = `feed-media/${postId}/${id}.mp4`;
+  const target = storagePutTarget(key, 'video/mp4');
+  if (!target) return { status: 503, body: { error: 'Büyük video için depolama yapılandırılmalı.' } };
+  return {
+    status: 200,
+    upload: {
+      ...target,
+      id,
+      maxBytes: MAX_FEED_VIDEO_BYTES,
+      mimeType: 'video/mp4',
+    },
+  };
+}
+
+export async function confirmPostVideo(user, postId, { key, size } = {}) {
+  if (!canWriteFeed(user)) return { status: 402, body: { error: 'Membership required' } };
+  const [post] = await query(`SELECT id, user_id FROM feed_posts WHERE id = ? AND deleted_at IS NULL LIMIT 1`, [postId]);
+  if (!post) return { status: 404, body: { error: 'Not found' } };
+  if (post.user_id !== user.id) return { status: 403, body: { error: 'Forbidden' } };
+
+  const parsed = parseFeedVideoKey(key);
+  if (!parsed || parsed.postId !== postId) return { status: 400, body: { error: 'Invalid file' } };
+  const bytes = Number(size);
+  if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_FEED_VIDEO_BYTES) {
+    return { status: 413, body: { error: 'Video en fazla 2 GB olabilir.' } };
+  }
+
+  const slot = await postMediaSlot(postId, 'video');
+  if (slot.error) return slot.error;
+
+  try {
+    await query(
+      `INSERT INTO feed_media (id, post_id, reply_id, kind, mime_type, byte_size, storage_key, thumbnail_key, data, sort_order, uploaded_by_user_id)
+       VALUES (?, ?, NULL, 'video', 'video/mp4', ?, ?, NULL, NULL, ?, ?)`,
+      [parsed.id, postId, bytes, parsed.key, Number(slot.maxOrder) + 1, user.id]
+    );
+  } catch (err) {
+    if (err?.code === 'ER_DUP_ENTRY') {
+      return {
+        status: 200,
+        body: {
+          media: mediaDTO({
+            id: parsed.id,
+            kind: 'video',
+            mime_type: 'video/mp4',
+            storage_key: parsed.key,
+            thumbnail_key: null,
+            data: null,
+          }),
+        },
+      };
+    }
+    throw err;
+  }
+  return {
+    status: 201,
+    body: {
+      media: mediaDTO({
+        id: parsed.id,
+        kind: 'video',
+        mime_type: 'video/mp4',
+        storage_key: parsed.key,
+        thumbnail_key: null,
+        data: null,
+      }),
+    },
+  };
 }
 
 async function persistVideoThumbnail(id, postId, replyId, thumbnailBuffer) {
